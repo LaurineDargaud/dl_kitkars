@@ -54,7 +54,7 @@ def split_dataset(aPath, aTestTXTFilenamesPath, train_ratio=0.85, valid_ratio=0.
     assert train_ratio+valid_ratio == 1.0
     
     # get test filenames list
-    test_ids = np.loadtxt(aTestTXTFilenamesPath, delimiter='\n', dtype=str)
+    test_ids = np.loadtxt(aTestTXTFilenamesPath, dtype=str)
     test_filenames = np.array([f.split('.')[0] for f in test_ids])
     
     # get all data
@@ -76,8 +76,8 @@ def split_dataset(aPath, aTestTXTFilenamesPath, train_ratio=0.85, valid_ratio=0.
     # get train and valid datasets
     train_valid_data_list = np.array(train_valid_data_list)
     permutation = np.random.permutation(len(train_valid_data_list))
-    train_indices = permutation[:train_ratio*len(train_valid_data_list)]
-    valid_indices = permutation[train_ratio*len(train_valid_data_list):]
+    train_indices = permutation[:int(train_ratio*len(train_valid_data_list))]
+    valid_indices = permutation[int(train_ratio*len(train_valid_data_list)):]
     
     train_dataset = DeloitteDataset(list(train_valid_data_list[train_indices]))
     valid_dataset = DeloitteDataset(list(train_valid_data_list[valid_indices]))
