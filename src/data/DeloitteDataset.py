@@ -1,45 +1,17 @@
-from dataclasses import dataclass
-
-@dataclass
-class Car:
-    distinct_classes: list
-    mask: list
-    rgb_image: list
-    filename: str
-    npy_file_path: str
-    is_in_test_set: bool
-    
 from torch.utils.data import Dataset
+from torchvision.transforms import ToTensor
 
 class DeloitteDataset(Dataset):
-    def __init__(self, data_list):
+    def __init__(self, data_list, transform=ToTensor()):
+        # list of paths
         self.data_list = data_list
+        self.transform = transform
 
     def __len__(self):
         return len(self.data_list)
 
     def __getitem__(self, idx):
-        aCar = self.data_list[idx]
-        return (aCar.rgb_image, aCar.mask)
-
-from pathlib import Path
-import glob2
-import numpy as np
-
-def get_all_data(aPath, test_set_list):
-    """Get all files as Car from given folder
-
-    :param aPath: folder path (here: data/raw/carset_data/clean_data)
-    :type aPath: str
-    :param test_set_list: list of test set's filenames (provided by Deloitte)
-    :type test_set_list: list
-    :return: data in given folder as Car instances
-    :rtype: list of Car
-    """
-    all_paths = [ Path(p).absolute() for p in glob2.glob(aPath + '/*') ]
-    all_data = []
-    
-    for aNumpyFilePath in all_paths:
+        aNumpyFilePath = self.data_list[idx]
         # load npy array
         numpy_array = np.load(aNumpyFilePath)
         # get RGB image
@@ -50,21 +22,14 @@ def get_all_data(aPath, test_set_list):
         distinct_classes_list = list(set(mask_img.flatten()))
         # get filename
         filename = aNumpyFilePath.stem
-        # is it in test set?
-        is_in_test = filename in test_set_list
-        # add object
-        all_data.append(
-            Car(
-                distinct_classes=distinct_classes_list,
-                mask=mask_img,
-                rgb_image=rgb_img,
-                filename=filename,
-                npy_file_path=aNumpyFilePath,
-                is_in_test_set=is_in_test
-            )
-        )
-        
-    return all_data
+        # to tensor
+        rgb_img = self.transform(rgb_img)
+        mask_img = self.transform(mask_img)
+        return {'image':rgb_img, 'mask':mask_img, 'distinct_classes':distinct_classes_list, 'filename':filename, 'path':aNumpyFilePath}
+
+from pathlib import Path
+import glob2
+import numpy as np
 
 def split_dataset(aPath, aTestTXTFilenamesPath, train_ratio=0.85, valid_ratio=0.15, seed_random=42):
     """_summary_
@@ -93,13 +58,23 @@ def split_dataset(aPath, aTestTXTFilenamesPath, train_ratio=0.85, valid_ratio=0.
     test_filenames = np.array([f.split('.')[0] for f in test_ids])
     
     # get all data
-    all_data = get_all_data(aPath, test_filenames)
+    all_paths = [ Path(p).absolute() for p in glob2.glob(aPath + '/*') ]
+    
+    # get filepaths lists
+    train_valid_data_list, test_data_list = [], []
+    for aPath in all_paths:
+        # get filename
+        filename = aPath.stem
+        if filename in test_filenames:
+            test_data_list.append(aPath)
+        else:
+            train_valid_data_list.append(aPath)
     
     # get test dataset
-    test_dataset = DeloitteDataset([c for c in all_data if c.is_in_test_set])
+    test_dataset = DeloitteDataset(test_data_list)
     
     # get train and valid datasets
-    train_valid_data_list = np.array([c for c in all_data if not c.is_in_test_set])
+    train_valid_data_list = np.array(train_valid_data_list)
     permutation = np.random.permutation(len(train_valid_data_list))
     train_indices = permutation[:train_ratio*len(train_valid_data_list)]
     valid_indices = permutation[train_ratio*len(train_valid_data_list):]

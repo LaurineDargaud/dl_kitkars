@@ -1,6 +1,7 @@
 data_paths:
   clean_data: 'data/raw/carseg_data/clean_data'
+  test_set_filenames: 'references/test_set_ids.txt'
 
 hyperparameters:
-  batch_size: 64
+  batch_size: 16
   learning_rate: 1e-4
