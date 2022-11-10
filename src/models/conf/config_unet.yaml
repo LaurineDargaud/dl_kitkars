@@ -8,6 +8,9 @@ model_paths:
 hyperparameters:
   batch_size: 16
   learning_rate: 1e-4
+  num_epochs: 5
+  validation_every_steps: 500
 
 unet_parameters:
   nb_output_channels: 9
+  to_finetune: ['outc']
