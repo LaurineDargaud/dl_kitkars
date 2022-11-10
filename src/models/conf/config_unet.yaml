@@ -1,5 +1,6 @@
 cuda: 0
 name: 'v1'
+name_best: 'v1'
 log_wandb: True
 
 data_paths:
