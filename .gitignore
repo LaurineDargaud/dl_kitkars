@@ -83,6 +83,9 @@ target/
 /models/unet_carvana_scale0.5_epoch2.pth
 /outputs
 
+# exclude Wandb reports
+/wandb
+
 # Mac OS-specific storage files
 .DS_Store
 

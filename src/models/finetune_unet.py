@@ -20,13 +20,36 @@ from torch.utils.data import DataLoader
 from torch import nn
 import torch.optim as optim
 
+import wandb
+
 @click.command()
 @hydra.main(version_base=None, config_path='conf', config_name="config_unet")
-def main(cfg, cuda=0):
+def main(cfg):
     """ Fine tuning our U-Net pretrained model - baseline
     """
     logger = logging.getLogger(__name__)
     logger.info('finetune UNet pretrained model')
+    
+    cuda, name, log_wandb = cfg.cuda, cfg.name, cfg.log_wandb
+
+    # WANDB LOG
+    if log_wandb:
+        logger.info('setting wandb logging system')
+        wandb.init(
+            project="unet-finetuning", 
+            entity="kitkars", 
+            name=name,
+            config={
+                "pt_name":f'unet_finetuned_{name}.pt',
+                "learning_rate": cfg.hyperparameters.learning_rate,
+                "epochs": cfg.hyperparameters.num_epochs,
+                "batch_size": cfg.hyperparameters.batch_size,
+                "weight_decay": cfg.hyperparameters.weight_decay,
+                "finetuned_parameters": cfg.unet_parameters.to_finetune
+            }
+        )
+    else:
+        logger.info('NO WANDB LOG')
     
     # Set torch device
     device = torch.device(f'cuda:{cuda}')
@@ -38,18 +61,19 @@ def main(cfg, cuda=0):
         cfg.data_paths.test_set_filenames
     )
     
+    batch_size=cfg.hyperparameters.batch_size
     # Get dataloaders
     logger.info('creating dataloaders')
     train_loader = DataLoader(
         train_dataset, 
-        batch_size=cfg.hyperparameters.batch_size, 
+        batch_size=batch_size, 
         num_workers=cfg.hyperparameters.num_workers,
         shuffle=True,
         drop_last=True
     )
     valid_loader = DataLoader(
         valid_dataset, 
-        batch_size=cfg.hyperparameters.batch_size, 
+        batch_size=batch_size, 
         num_workers=cfg.hyperparameters.num_workers,
         shuffle=True,
         drop_last=False
@@ -67,9 +91,7 @@ def main(cfg, cuda=0):
     # Test the forward pass with dummy data
     logger.info('testing with dummy data')
     out = model(torch.randn(10, 3, 32, 32, device=device))
-    # print("Output shape:", out.size())
     assert out.size() == (10, cfg.unet_parameters.nb_output_channels, 32, 32)
-    # print(f"Output logits:\n{out.detach().cpu().numpy()}")
     
     # Set optimizer and scheduler
     loss_fn = nn.CrossEntropyLoss()
@@ -81,18 +103,15 @@ def main(cfg, cuda=0):
     
     # Freeze some parameters
     logger.info('freezing wanted parameters')
-    for name, param in model.named_parameters():
-        name_keyword = name.split('.')[0]
+    for aName, param in model.named_parameters():
+        name_keyword = aName.split('.')[0]
         if (cfg.unet_parameters.to_finetune == 'all') or (name_keyword in cfg.unet_parameters.to_finetune):
-            print('To finetune:', name)
+            print('To finetune:', aName)
             param.required_grad = True
         else:
             param.required_grad = False
     
     # Training loop
-    # TODO: weights & bias dashboard
-    
-    batch_size = cfg.hyperparameters.batch_size
     num_epochs = cfg.hyperparameters.num_epochs
     validation_every_steps = cfg.hyperparameters.validation_every_steps
 
@@ -101,10 +120,7 @@ def main(cfg, cuda=0):
 
     model.train()
 
-    train_dice_scores = []
-    valid_dice_score = []
-
-    loss_list = []
+    train_dice_scores, valid_dice_score = [], []
 
     max_valid_dice_score, best_model = None, None
             
@@ -153,6 +169,7 @@ def main(cfg, cuda=0):
             
                 # Compute DICE scores on validation set.
                 valid_dice_scores_batches = []
+                valid_loss = 0
                 with torch.no_grad():
                     model.eval()
                     for rgb_img, mask_img in valid_loader:
@@ -162,6 +179,7 @@ def main(cfg, cuda=0):
                             output.flatten(start_dim=2, end_dim=len(output.size())-1), 
                             mask_img.flatten(start_dim=1, end_dim=len(mask_img.size())-1).type(torch.long)
                         )
+                        valid_loss += loss  
 
                         predictions = output.flatten(start_dim=2, end_dim=len(output.size())-1).softmax(1)
 
@@ -186,11 +204,24 @@ def main(cfg, cuda=0):
                 print(f"Step {step:<5}   training DICE score: {train_dice_scores[-1]}")
                 print(f"             test DICE score: {valid_dice_score[-1]}")
                 
-        loss_list.append(cur_loss / batch_size)
-
+                # wandb log
+                if log_wandb:
+                    wandb.log({
+                        "valid_dice_score": valid_dice_score[-1],
+                        "valid_loss": valid_loss.cpu().detach().numpy(),
+                        "training_dice_score": train_dice_scores[-1],
+                    })
+                    
+        wandb.log({
+            "training_loss": cur_loss.cpu().detach().numpy()
+        })
+        
     print("Finished training.")
     
-    # Save model and performance results
+    # Save model
+    model.load_state_dict(best_model)
+    torch.save(model.state_dict(), cfg.model_paths.models+f'unet_finetuned_{name}.pt')     
+    wandb.watch(model) #optional
 
 if __name__ == '__main__':
     log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'

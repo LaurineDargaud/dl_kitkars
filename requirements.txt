@@ -12,6 +12,7 @@ python-dotenv>=0.5.1
 hydra-core
 opencv-python
 joblib
+wandb
 
 torch
 torchmetrics

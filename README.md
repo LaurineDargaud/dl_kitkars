@@ -1,17 +1,27 @@
-Deep Learning - Kit-Kars - Project:10 - Deloitte Car Segmentation
+Kit-Kars
 ==============================
 
-KitKars project on Car Segmentation with Deloitte, for DTU Deep Learning course.
+ML project on Car Segmentation with Deloitte, for DTU Deep Learning course.
 
-#### TODO before running anything:
+### TODO before running anything:
 - run `make requirements` from `dl_kitkars` folder
+- run `wandb login`, then go to the Wandb of our project, copy the key and get WANDB authorization
 - download [`unet_carvana_scale0.5_epoch2.pth`](https://github.com/milesial/Pytorch-UNet/releases/tag/v3.0) in `models` folder
 - download `clean_data` files (3521 files) in `data/raw/carseg_data/clean_data`
 
-#### Useful Code
+### Useful Tips
 - To debug: `import pdb; pdb.set_trace()`
+- Start a tmux session: `tmux new -s <someName>`
+- Attach the tmux session later: `tmux attach -t <someName>` 
+- Kill a tmux session: `tmux kill-session`
+- Remove a local commit without any changes: `git reset HEAD~1 --soft`
 
-Project Organization
+### Useful Links
+- About tmux: https://linuxize.com/post/getting-started-with-tmux/
+- HPC GPU available: https://www.hpc.dtu.dk/?page_id=2129
+- MLOps course website: https://skaftenicki.github.io/dtu_mlops/
+
+### Project Organization
 ------------
 
     ├── LICENSE
