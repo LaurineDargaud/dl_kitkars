@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader
 import hydra
 
 @click.command()
-@hydra.main(config_name="config_unet.yaml")
+@hydra.main(version_base=None, config_path='conf', config_name="config_unet")
 def main(cfg):
     """ Fine tuning our U-Net pretrained model - baseline
     """
@@ -18,12 +18,14 @@ def main(cfg):
     logger.info('finetune UNet pretrained model')
     
     # Load Datasets
-    train_dataset, valid_dataset, test_dataset = split_dataset(cfg.data_paths.clean_data)
+    train_dataset, valid_dataset, test_dataset = split_dataset(cfg.data_paths.clean_data, cfg.data_paths.test_set_filenames)
     
     # Get dataloaders
     train_loader = DataLoader(train_dataset, batch_size=cfg.hyperparameters.batch_size, shuffle=True)
     valid_loader = DataLoader(valid_dataset, batch_size=cfg.hyperparameters.batch_size, shuffle=True)
     test_loader = DataLoader(test_dataset, batch_size=cfg.hyperparameters.batch_size, shuffle=False)
+    
+    import pdb;pdb.set_trace()
     
     
     
