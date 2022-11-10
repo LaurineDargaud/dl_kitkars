@@ -9,6 +9,10 @@ from torch.utils.data import DataLoader
 
 import hydra
 
+import torch
+from src.models.unet import UNet
+from src.models.unet import OutConv
+
 @click.command()
 @hydra.main(version_base=None, config_path='conf', config_name="config_unet")
 def main(cfg):
@@ -21,19 +25,18 @@ def main(cfg):
     logger.info('loading datasets')
     train_dataset, valid_dataset, test_dataset = split_dataset(cfg.data_paths.clean_data, cfg.data_paths.test_set_filenames)
     
-    import pdb;pdb.set_trace()
-    
     # Get dataloaders
     logger.info('creating dataloaders')
     train_loader = DataLoader(train_dataset, batch_size=cfg.hyperparameters.batch_size, shuffle=True)
     valid_loader = DataLoader(valid_dataset, batch_size=cfg.hyperparameters.batch_size, shuffle=True)
     test_loader = DataLoader(test_dataset, batch_size=cfg.hyperparameters.batch_size, shuffle=False)
     
-    
-    
     # Load model
+    model = UNet(n_channels=3, n_classes=2)
+    model.load_state_dict(torch.load(cfg.model_paths.unet_scale_05))
     
     # Replace final outc layer
+    model.outc = OutConv(64, cfg.unet_parameters.nb_output_channels)
     
     # Set optimizer and scheduler
     
