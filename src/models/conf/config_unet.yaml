@@ -3,5 +3,5 @@ data_paths:
   test_set_filenames: 'references/test_set_ids.txt'
 
 hyperparameters:
-  batch_size: 64
+  batch_size: 16
   learning_rate: 1e-4
