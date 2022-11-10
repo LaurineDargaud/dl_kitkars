@@ -78,6 +78,10 @@ target/
 # exclude data from source control by default
 /data/
 
+# exclude Google Credentials to access GDrive
+/notebooks/client_secret.json
+/models/unet_carvana_scale0.5_epoch2.pth
+
 # Mac OS-specific storage files
 .DS_Store
 
