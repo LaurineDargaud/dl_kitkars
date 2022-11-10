@@ -208,12 +208,12 @@ def main(cfg):
                 if log_wandb:
                     wandb.log({
                         "valid_dice_score": valid_dice_score[-1],
-                        "valid_loss": valid_loss.cpu().detach().numpy(),
+                        "valid_loss": valid_loss.cpu().detach().numpy() / len(valid_dataset),
                         "training_dice_score": train_dice_scores[-1],
                     })
                     
         wandb.log({
-            "training_loss": cur_loss.cpu().detach().numpy()
+            "training_loss": cur_loss.cpu().detach().numpy() / len(train_dataset)
         })
         
     print("Finished training.")
