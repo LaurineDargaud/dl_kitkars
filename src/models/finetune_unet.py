@@ -21,15 +21,11 @@ def main(cfg):
     logger.info('loading datasets')
     train_dataset, valid_dataset, test_dataset = split_dataset(cfg.data_paths.clean_data, cfg.data_paths.test_set_filenames)
     
-    import pdb;pdb.set_trace()
-    
     # Get dataloaders
     logger.info('creating dataloaders')
     train_loader = DataLoader(train_dataset, batch_size=cfg.hyperparameters.batch_size, shuffle=True)
     valid_loader = DataLoader(valid_dataset, batch_size=cfg.hyperparameters.batch_size, shuffle=True)
     test_loader = DataLoader(test_dataset, batch_size=cfg.hyperparameters.batch_size, shuffle=False)
-    
-    
     
     # Load model
     
