@@ -77,10 +77,11 @@ test_environment:
 	$(PYTHON_INTERPRETER) test_environment.py
 
 #################################################################################
-# PROJECT RULES                                                                 #
+# PROJECT COMMANDS                                                                 #
 #################################################################################
 
-
+finetune_unet:
+	$(PYTHON_INTERPRETER) src/models/finetune_unet.py
 
 #################################################################################
 # Self Documenting Commands                                                     #

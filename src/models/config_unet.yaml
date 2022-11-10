@@ -1,0 +1,6 @@
+data_paths:
+  clean_data: 'data/raw/carseg_data/clean_data'
+
+hyperparameters:
+  batch_size: 64
+  learning_rate: 1e-4
