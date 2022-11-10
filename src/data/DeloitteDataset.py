@@ -1,3 +1,4 @@
+import torch
 from torch.utils.data import Dataset
 from torchvision.transforms import ToTensor
 
@@ -19,19 +20,20 @@ class DeloitteDataset(Dataset):
         # get grayscale maske
         mask_img = numpy_array[3]
         # get distinct classes list in image from mask
-        distinct_classes_list = list(set(mask_img.flatten()))
+        # distinct_classes_list = list(set(mask_img.flatten()))
         # get filename
-        filename = aNumpyFilePath.stem
+        # filename = aNumpyFilePath.stem
         # to tensor
-        rgb_img = self.transform(rgb_img)
-        mask_img = self.transform(mask_img)
-        return {'image':rgb_img, 'mask':mask_img, 'distinct_classes':distinct_classes_list, 'filename':filename, 'path':aNumpyFilePath}
+        rgb_img = self.transform(rgb_img).type(torch.float)
+        mask_img = self.transform(mask_img).type(torch.int)
+        # return {'image':rgb_img, 'mask':mask_img, 'distinct_classes':distinct_classes_list, 'filename':filename, 'path':aNumpyFilePath}
+        return rgb_img, mask_img
 
 from pathlib import Path
 import glob2
 import numpy as np
 
-def split_dataset(aPath, aTestTXTFilenamesPath, train_ratio=0.85, valid_ratio=0.15, seed_random=42):
+def split_dataset(aPath, aTestTXTFilenamesPath, train_ratio=0.85, valid_ratio=0.15, seed_random=42, transform=None):
     """_summary_
 
     :param aPath: path to folder that contains all npy data files
@@ -71,7 +73,10 @@ def split_dataset(aPath, aTestTXTFilenamesPath, train_ratio=0.85, valid_ratio=0.
             train_valid_data_list.append(aPath)
     
     # get test dataset
-    test_dataset = DeloitteDataset(test_data_list)
+    if transform == None:
+        test_dataset = DeloitteDataset(test_data_list)
+    else:
+        test_dataset = DeloitteDataset(test_data_list, transform)
     
     # get train and valid datasets
     train_valid_data_list = np.array(train_valid_data_list)
@@ -79,7 +84,12 @@ def split_dataset(aPath, aTestTXTFilenamesPath, train_ratio=0.85, valid_ratio=0.
     train_indices = permutation[:int(train_ratio*len(train_valid_data_list))]
     valid_indices = permutation[int(train_ratio*len(train_valid_data_list)):]
     
-    train_dataset = DeloitteDataset(list(train_valid_data_list[train_indices]))
-    valid_dataset = DeloitteDataset(list(train_valid_data_list[valid_indices]))
+    if transform == None:
+        train_dataset = DeloitteDataset(list(train_valid_data_list[train_indices]))
+        valid_dataset = DeloitteDataset(list(train_valid_data_list[valid_indices]))
+    else:
+        train_dataset = DeloitteDataset(list(train_valid_data_list[train_indices]), transform)
+        valid_dataset = DeloitteDataset(list(train_valid_data_list[valid_indices]), transform)
+
     
     return train_dataset, valid_dataset, test_dataset

@@ -1,7 +1,15 @@
-dl_kitkars
+Deep Learning - Kit-Kars - Project:10 - Deloitte Car Segmentation
 ==============================
 
-A short description of the project.
+KitKars project on Car Segmentation with Deloitte, for DTU Deep Learning course.
+
+#### TODO before running anything:
+- run `make requirements` from `dl_kitkars` folder
+- download [`unet_carvana_scale0.5_epoch2.pth`](https://github.com/milesial/Pytorch-UNet/releases/tag/v3.0) in `models` folder
+- download `clean_data` files (3521 files) in `data/raw/carseg_data/clean_data`
+
+#### Useful Code
+- To debug: `import pdb; pdb.set_trace()`
 
 Project Organization
 ------------
