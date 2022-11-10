@@ -81,6 +81,7 @@ target/
 # exclude Google Credentials to access GDrive
 /notebooks/client_secret.json
 /models/unet_carvana_scale0.5_epoch2.pth
+/outputs
 
 # Mac OS-specific storage files
 .DS_Store
