@@ -80,6 +80,9 @@ test_environment:
 # PROJECT COMMANDS                                                                 #
 #################################################################################
 
+check_cuda:
+	$(PYTHON_INTERPRETER) src/check_cuda.py
+
 finetune_unet:
 	$(PYTHON_INTERPRETER) src/models/finetune_unet.py
 

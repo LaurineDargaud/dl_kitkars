@@ -13,7 +13,7 @@ from src.data.DeloitteDataset import split_dataset
 from src.models.unet import UNet
 from src.models.unet import OutConv
 
-from torchmetrics.functional import dice_score
+from src.models.performance_metrics import dice_score
 
 import torch
 from torch.utils.data import DataLoader
@@ -33,16 +33,27 @@ def main(cfg, cuda=0):
     
     # Load Datasets
     logger.info('loading datasets')
-    train_dataset, valid_dataset, test_dataset = split_dataset(
+    train_dataset, valid_dataset, _ = split_dataset(
         cfg.data_paths.clean_data, 
         cfg.data_paths.test_set_filenames
     )
     
     # Get dataloaders
     logger.info('creating dataloaders')
-    train_loader = DataLoader(train_dataset, batch_size=cfg.hyperparameters.batch_size, shuffle=True)
-    valid_loader = DataLoader(valid_dataset, batch_size=cfg.hyperparameters.batch_size, shuffle=True)
-    test_loader = DataLoader(test_dataset, batch_size=cfg.hyperparameters.batch_size, shuffle=False)
+    train_loader = DataLoader(
+        train_dataset, 
+        batch_size=cfg.hyperparameters.batch_size, 
+        num_workers=cfg.hyperparameters.num_workers,
+        shuffle=True,
+        drop_last=True
+    )
+    valid_loader = DataLoader(
+        valid_dataset, 
+        batch_size=cfg.hyperparameters.batch_size, 
+        num_workers=cfg.hyperparameters.num_workers,
+        shuffle=True,
+        drop_last=False
+    )
     
     # Load model
     logger.info('load U-net pretrained model')
@@ -72,7 +83,7 @@ def main(cfg, cuda=0):
     logger.info('freezing wanted parameters')
     for name, param in model.named_parameters():
         name_keyword = name.split('.')[0]
-        if name_keyword in cfg.unet_parameters.to_finetune:
+        if (cfg.unet_parameters.to_finetune == 'all') or (name_keyword in cfg.unet_parameters.to_finetune):
             print('To finetune:', name)
             param.required_grad = True
         else:
@@ -126,7 +137,6 @@ def main(cfg, cuda=0):
             
             # Compute DICE score.
             predictions = output.flatten(start_dim=2, end_dim=len(output.size())-1).softmax(1)
-            #import pdb; pdb.set_trace()
             train_dice_scores_batches.append(
                 dice_score(
                     predictions, 
@@ -145,15 +155,23 @@ def main(cfg, cuda=0):
                 valid_dice_scores_batches = []
                 with torch.no_grad():
                     model.eval()
-                    for inputs, targets in test_loader:
-                        inputs, targets = inputs.to(device), targets.to(device)
-                        output = model(inputs)
-                        loss = loss_fn(output, targets)
+                    for rgb_img, mask_img in valid_loader:
+                        rgb_img, mask_img = rgb_img.to(device), mask_img.to(device)
+                        output = model(rgb_img)
+                        loss = loss_fn(
+                            output.flatten(start_dim=2, end_dim=len(output.size())-1), 
+                            mask_img.flatten(start_dim=1, end_dim=len(mask_img.size())-1).type(torch.long)
+                        )
 
-                        predictions = output.max(1)[1]
+                        predictions = output.flatten(start_dim=2, end_dim=len(output.size())-1).softmax(1)
 
                         # Multiply by len(x) because the final batch of DataLoader may be smaller (drop_last=False).
-                        valid_dice_scores_batches.append(dice_score(targets, predictions) * len(inputs))
+                        valid_dice_scores_batches.append(
+                            dice_score(
+                                predictions, 
+                                mask_img.flatten(start_dim=1, end_dim=len(mask_img.size())-1)
+                            ) * len(rgb_img)
+                        )
 
                         # Keep the best model
                         if (max_valid_dice_score == None) or (valid_dice_scores_batches[-1] > max_valid_dice_score):
@@ -163,7 +181,7 @@ def main(cfg, cuda=0):
                     model.train()
                     
                 # Append average validation DICE score to list.
-                valid_dice_score.append(np.sum(valid_dice_scores_batches) / len(test_set))
+                valid_dice_score.append(np.sum(valid_dice_scores_batches) / len(valid_dataset))
         
                 print(f"Step {step:<5}   training DICE score: {train_dice_scores[-1]}")
                 print(f"             test DICE score: {valid_dice_score[-1]}")
@@ -173,11 +191,6 @@ def main(cfg, cuda=0):
     print("Finished training.")
     
     # Save model and performance results
-    
-    
-    
-    
-
 
 if __name__ == '__main__':
     log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
