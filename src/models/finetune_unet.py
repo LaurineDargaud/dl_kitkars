@@ -17,6 +17,7 @@ from src.models.performance_metrics import dice_score
 
 import torch
 from torch.utils.data import DataLoader
+from torch.optim.lr_scheduler import CosineAnnealingLR
 from torch import nn
 import torch.optim as optim
 
@@ -101,6 +102,7 @@ def main(cfg):
         lr = cfg.hyperparameters.learning_rate, 
         weight_decay = cfg.hyperparameters.weight_decay
     )
+    scheduler = CosineAnnealingLR(optimizer, T_max=cfg.hyperparameters.T_max)
     
     # Freeze some parameters
     logger.info('freezing wanted parameters')
@@ -212,9 +214,11 @@ def main(cfg):
                         "valid_loss": valid_loss.cpu().detach().numpy() / len(valid_dataset),
                         "training_dice_score": train_dice_scores[-1],
                     })
+        scheduler.step()
         if log_wandb:            
             wandb.log({
-                "training_loss": cur_loss.cpu().detach().numpy() / len(train_dataset)
+                "training_loss": cur_loss.cpu().detach().numpy() / len(train_dataset),
+                "learning_rate": scheduler.get_last_lr()[0]
             })
         
     logger.info('FINISHED training')
