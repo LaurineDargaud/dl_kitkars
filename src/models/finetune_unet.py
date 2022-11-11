@@ -62,6 +62,7 @@ def main(cfg):
     )
     
     batch_size=cfg.hyperparameters.batch_size
+    
     # Get dataloaders
     logger.info('creating dataloaders')
     train_loader = DataLoader(
@@ -211,12 +212,12 @@ def main(cfg):
                         "valid_loss": valid_loss.cpu().detach().numpy() / len(valid_dataset),
                         "training_dice_score": train_dice_scores[-1],
                     })
-                    
-        wandb.log({
-            "training_loss": cur_loss.cpu().detach().numpy() / len(train_dataset)
-        })
+        if log_wandb:            
+            wandb.log({
+                "training_loss": cur_loss.cpu().detach().numpy() / len(train_dataset)
+            })
         
-    print("Finished training.")
+    logger.info('FINISHED training')
     
     # Save model
     model.load_state_dict(best_model)
