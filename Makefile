@@ -86,6 +86,9 @@ check_cuda:
 finetune_unet:
 	$(PYTHON_INTERPRETER) src/models/finetune_unet.py
 
+predict_unet:
+	$(PYTHON_INTERPRETER) src/models/predict_unet.py
+
 #################################################################################
 # Self Documenting Commands                                                     #
 #################################################################################

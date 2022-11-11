@@ -14,6 +14,8 @@ from src.models.unet import UNet
 
 from src.models.performance_metrics import dice_score
 
+from src.visualization.visualization_fct import mask_to_rgb
+
 import torch
 from torch.utils.data import DataLoader
 from torch import nn
@@ -25,10 +27,10 @@ import wandb
 def main(cfg):
     """ Predict test set with finetuned U-Net model
     """
-    logger = logging.getLogger(__name__)
-    logger.info('predict test set with finetuned U-Net model')
+    cuda, name, log_wandb, dataset_to_predict = cfg.cuda, cfg.name_best, cfg.log_wandb, cfg.predict_dataset
     
-    cuda, name, log_wandb = cfg.cuda, cfg.name_best, cfg.log_wandb
+    logger = logging.getLogger(__name__)
+    logger.info(f'predict {dataset_to_predict} set with finetuned U-Net model')
     
     # WANDB LOG
     if log_wandb:
@@ -36,7 +38,7 @@ def main(cfg):
         wandb.init(
             project="unet-predictions", 
             entity="kitkars", 
-            name=name,
+            name=f'{name} ({dataset_to_predict})',
             config={
                 "pt_name":f'unet_finetuned_{name}.pt',
                 "batch_size": cfg.hyperparameters.batch_size
@@ -49,16 +51,22 @@ def main(cfg):
     device = torch.device(f'cuda:{cuda}')
     
     # Load Datasets
-    logger.info('loading test set')
-    _, _, test_dataset = split_dataset(
+    logger.info(f'loading {dataset_to_predict} set')
+    train_dataset, valid_dataset, testing_dataset = split_dataset(
         cfg.data_paths.clean_data, 
         cfg.data_paths.test_set_filenames
     )
     
+    all_datasets = {
+        'train':train_dataset, 'valid': valid_dataset, 'test': testing_dataset
+    }
+    
+    test_dataset = all_datasets[dataset_to_predict]
+    
     batch_size=cfg.hyperparameters.batch_size
     
     # Get dataloaders
-    logger.info('creating test dataloader')
+    logger.info(f'creating {dataset_to_predict} dataloader')
     test_loader = DataLoader(
         test_dataset, 
         batch_size=batch_size, 
@@ -81,6 +89,8 @@ def main(cfg):
     test_loss = 0
     all_predictions = []
     all_dice_scores = []
+    
+    logger.info(f'running {dataset_to_predict} predictions')
     
     with torch.no_grad():
         model.eval()
@@ -107,10 +117,10 @@ def main(cfg):
             for i in range(len(output)):
                 all_predictions.append(output[i].cpu().detach().numpy())
                 all_dice_scores.append(
-                    dice_score(
-                        output[i].flatten(start_dim=2, end_dim=len(output[i].size())-1).softmax(1),
-                        mask_img[i].flatten(start_dim=1, end_dim=len(mask_img[i].size())-1)
-                    )
+                    float(dice_score(
+                        output[i].flatten(start_dim=1, end_dim=len(output.size())-2).softmax(1).unsqueeze(0),
+                        mask_img[i].flatten(start_dim=0, end_dim=len(mask_img.size())-2).unsqueeze(0)
+                    ))
                 )
     
     # Get performance metrics
@@ -119,30 +129,43 @@ def main(cfg):
     
     # wandb log
     if log_wandb:
+        
         wandb.log({
             "test_dice_score": test_dice_score,
             "test_loss": test_loss.cpu().detach().numpy() / len(test_dataset)
         })
         
+        logger.info(f'creating wandb table for predictions visualization')
+        
         # create a wandb.Table() with corresponding columns
-        columns=["id", "filename", "RGB image", "real mask", "prediction", "DICE score"]
+        columns=["id", "filename", "RGB image", "real mask", "prediction", "DICE score float", "DICE score"]
         test_table = wandb.Table(columns=columns)
         
-        for i in range (len(test_dataset)):
+        for i in tqdm(range((len(test_dataset)))):            
             rgb_image, mask_img = test_dataset[i]
+            
+            rgb_image = rgb_image.type(torch.int).cpu().detach().numpy()
+            rgb_image = np.transpose(rgb_image, (1, 2, 0))
+            mask_img = mask_img.cpu().detach().numpy()[0]
+            mask_img = mask_to_rgb(mask_img)
+            
             logit_prediction = all_predictions[i]
-            predicted_mask_img = np.argmax(logit_prediction, axis=0)
-            filename = test_dataset.data_list[i]
+            predicted_mask_img = mask_to_rgb(np.argmax(logit_prediction, axis=0))
+            
+            filename = test_dataset.data_list[i].name
             test_table.add_data(
                 i, 
                 filename, 
                 wandb.Image(rgb_image), 
                 wandb.Image(mask_img), 
                 wandb.Image(predicted_mask_img),
-                all_dice_scores[i]
+                all_dice_scores[i],
+                round(all_dice_scores[i]*100,3)
             )
         
         wandb.log({"test_table": test_table})
+    
+    logger.info('FINISHED predictions')
 
 if __name__ == '__main__':
     log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'

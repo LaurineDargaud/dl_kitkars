@@ -217,7 +217,7 @@ def main(cfg):
                 "training_loss": cur_loss.cpu().detach().numpy() / len(train_dataset)
             })
         
-    print("Finished training.")
+    logger.info('FINISHED training')
     
     # Save model
     model.load_state_dict(best_model)
