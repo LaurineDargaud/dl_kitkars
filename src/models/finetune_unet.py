@@ -19,6 +19,7 @@ import torch
 from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from torch import nn
+from torchvision import transforms
 import torch.optim as optim
 
 import wandb
@@ -55,11 +56,18 @@ def main(cfg):
     # Set torch device
     device = torch.device(f'cuda:{cuda}')
     
+    # Define image transformations
+    transformations = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize(0.0, 1.0)
+    ])
+    
     # Load Datasets
     logger.info('loading datasets')
     train_dataset, valid_dataset, _ = split_dataset(
         cfg.data_paths.clean_data, 
-        cfg.data_paths.test_set_filenames
+        cfg.data_paths.test_set_filenames,
+        transform=transformations
     )
     
     batch_size=cfg.hyperparameters.batch_size
