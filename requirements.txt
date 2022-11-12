@@ -17,3 +17,4 @@ wandb
 torch
 torchmetrics
 torchvision
+glob2
