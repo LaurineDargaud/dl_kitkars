@@ -12,6 +12,8 @@ from src.data.DeloitteDataset import split_dataset
 
 from src.models.unet import UNet
 
+from torchvision import transforms
+
 from src.models.performance_metrics import dice_score
 
 from src.visualization.visualization_fct import mask_to_rgb
@@ -50,11 +52,18 @@ def main(cfg):
     # Set torch device
     device = torch.device(f'cuda:{cuda}')
     
+    # Define image transformations
+    transformations = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize(0.0, 1.0)
+    ])
+    
     # Load Datasets
     logger.info(f'loading {dataset_to_predict} set')
     train_dataset, valid_dataset, testing_dataset = split_dataset(
         cfg.data_paths.clean_data, 
-        cfg.data_paths.test_set_filenames
+        cfg.data_paths.test_set_filenames,
+        transform=transformations
     )
     
     all_datasets = {

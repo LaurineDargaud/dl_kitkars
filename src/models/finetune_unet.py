@@ -17,7 +17,9 @@ from src.models.performance_metrics import dice_score
 
 import torch
 from torch.utils.data import DataLoader
+from torch.optim.lr_scheduler import CosineAnnealingLR
 from torch import nn
+from torchvision import transforms
 import torch.optim as optim
 
 import wandb
@@ -54,11 +56,18 @@ def main(cfg):
     # Set torch device
     device = torch.device(f'cuda:{cuda}')
     
+    # Define image transformations
+    transformations = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize(0.0, 1.0)
+    ])
+    
     # Load Datasets
     logger.info('loading datasets')
     train_dataset, valid_dataset, _ = split_dataset(
         cfg.data_paths.clean_data, 
-        cfg.data_paths.test_set_filenames
+        cfg.data_paths.test_set_filenames,
+        transform=transformations
     )
     
     batch_size=cfg.hyperparameters.batch_size
@@ -101,6 +110,7 @@ def main(cfg):
         lr = cfg.hyperparameters.learning_rate, 
         weight_decay = cfg.hyperparameters.weight_decay
     )
+    scheduler = CosineAnnealingLR(optimizer, T_max=cfg.hyperparameters.T_max)
     
     # Freeze some parameters
     logger.info('freezing wanted parameters')
@@ -212,9 +222,11 @@ def main(cfg):
                         "valid_loss": valid_loss.cpu().detach().numpy() / len(valid_dataset),
                         "training_dice_score": train_dice_scores[-1],
                     })
+        scheduler.step()
         if log_wandb:            
             wandb.log({
-                "training_loss": cur_loss.cpu().detach().numpy() / len(train_dataset)
+                "training_loss": cur_loss.cpu().detach().numpy() / len(train_dataset),
+                "learning_rate": scheduler.get_last_lr()[0]
             })
         
     logger.info('FINISHED training')

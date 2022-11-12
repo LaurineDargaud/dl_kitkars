@@ -3,10 +3,11 @@ from torch.utils.data import Dataset
 from torchvision.transforms import ToTensor
 
 class DeloitteDataset(Dataset):
-    def __init__(self, data_list, transform=ToTensor()):
+    def __init__(self, data_list, transform=ToTensor(), transform_mask=ToTensor()):
         # list of paths
         self.data_list = data_list
         self.transform = transform
+        self.transform_mask = transform_mask
 
     def __len__(self):
         return len(self.data_list)
@@ -16,7 +17,7 @@ class DeloitteDataset(Dataset):
         # load npy array
         numpy_array = np.load(aNumpyFilePath)
         # get RGB image
-        rgb_img = (np.transpose(numpy_array[:3], (1, 2, 0))*255).astype(int)
+        rgb_img = (np.transpose(numpy_array[:3], (1, 2, 0))*255).astype(float)
         # get grayscale maske
         mask_img = numpy_array[3]
         # get distinct classes list in image from mask
@@ -25,7 +26,7 @@ class DeloitteDataset(Dataset):
         # filename = aNumpyFilePath.stem
         # to tensor
         rgb_img = self.transform(rgb_img).type(torch.float)
-        mask_img = self.transform(mask_img).type(torch.int)
+        mask_img = self.transform_mask(mask_img).type(torch.int)
         # return {'image':rgb_img, 'mask':mask_img, 'distinct_classes':distinct_classes_list, 'filename':filename, 'path':aNumpyFilePath}
         return rgb_img, mask_img
 
