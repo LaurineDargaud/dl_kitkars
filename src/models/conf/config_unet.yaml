@@ -1,10 +1,10 @@
 cuda: 0
-name: 'v4'
+name: 'v5'
 
 log_wandb: True
 
 # For Predictions
-name_best: 'v4'
+name_best: 'v5'
 predict_dataset: 'test'
 
 data_paths:
