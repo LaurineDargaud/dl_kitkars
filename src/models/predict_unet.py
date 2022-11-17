@@ -112,7 +112,7 @@ def main(cfg):
             )
             test_loss += loss  
 
-            predictions = output.flatten(start_dim=2, end_dim=len(output.size())-1).softmax(1)
+            predictions = output.flatten(start_dim=2, end_dim=len(output.size())-1)
 
             # Multiply by len(x) because the final batch of DataLoader may be smaller (drop_last=False).
             test_dice_scores_batches.append(
@@ -127,7 +127,7 @@ def main(cfg):
                 all_predictions.append(output[i].cpu().detach().numpy())
                 all_dice_scores.append(
                     float(dice_score(
-                        output[i].flatten(start_dim=1, end_dim=len(output.size())-2).softmax(1).unsqueeze(0),
+                        output[i].flatten(start_dim=1, end_dim=len(output.size())-2).unsqueeze(0),
                         mask_img[i].flatten(start_dim=0, end_dim=len(mask_img.size())-2).unsqueeze(0)
                     ))
                 )
@@ -135,6 +135,7 @@ def main(cfg):
     # Get performance metrics
     test_dice_score = np.sum(test_dice_scores_batches) / len(test_dataset)
     print(f"Test DICE score: {test_dice_score}")
+    print(f"[Check] Avg Test DICE score: {np.mean(all_dice_scores)}")
     
     # wandb log
     if log_wandb:
