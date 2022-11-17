@@ -59,6 +59,7 @@ def main(cfg):
     # Define image transformations
     transformations = transforms.Compose([
         transforms.ToTensor(),
+        transforms.Grayscale(3),
         transforms.Normalize(0.0, 1.0)
     ])
     

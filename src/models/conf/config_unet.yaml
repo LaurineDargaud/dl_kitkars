@@ -1,11 +1,11 @@
 cuda: 0
-name: 'v4'
+name: 'v5'
 
 log_wandb: True
 
 # For Predictions
-name_best: 'v4'
-predict_dataset: 'valid'
+name_best: 'v5'
+predict_dataset: 'test'
 
 data_paths:
   clean_data: 'data/raw/carseg_data/clean_data'
