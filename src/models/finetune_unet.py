@@ -163,7 +163,7 @@ def main(cfg):
             step += 1
             
             # Compute DICE score.
-            predictions = output.flatten(start_dim=2, end_dim=len(output.size())-1).softmax(1)
+            predictions = output.flatten(start_dim=2, end_dim=len(output.size())-1)
             train_dice_scores_batches.append(
                 dice_score(
                     predictions, 
@@ -192,7 +192,7 @@ def main(cfg):
                         )
                         valid_loss += loss  
 
-                        predictions = output.flatten(start_dim=2, end_dim=len(output.size())-1).softmax(1)
+                        predictions = output.flatten(start_dim=2, end_dim=len(output.size())-1)
 
                         # Multiply by len(x) because the final batch of DataLoader may be smaller (drop_last=False).
                         valid_dice_scores_batches.append(

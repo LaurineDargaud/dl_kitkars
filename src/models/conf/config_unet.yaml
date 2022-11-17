@@ -4,7 +4,7 @@ name: 'v4'
 log_wandb: True
 
 # For Predictions
-name_best: 'v3'
+name_best: 'v4'
 predict_dataset: 'valid'
 
 data_paths:
