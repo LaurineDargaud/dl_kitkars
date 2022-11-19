@@ -15,6 +15,7 @@ ML project on Car Segmentation with Deloitte, for DTU Deep Learning course.
 - Attach the tmux session later: `tmux attach -t <someName>` 
 - Kill a tmux session: `tmux kill-session`
 - Remove a local commit without any changes: `git reset HEAD~1 --soft`
+- HPC keywords: `voltash`, `sxm2sh` or `a100sh`
 
 ### Useful Links
 - About tmux: https://linuxize.com/post/getting-started-with-tmux/
