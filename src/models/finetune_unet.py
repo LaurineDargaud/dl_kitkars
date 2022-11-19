@@ -4,6 +4,8 @@ import logging
 from pathlib import Path
 from dotenv import find_dotenv, load_dotenv
 
+from torchvision.transforms import ColorJitter
+
 import hydra
 from tqdm import tqdm
 import numpy as np
@@ -59,8 +61,8 @@ def main(cfg):
     # Define image transformations
     transformations = transforms.Compose([
         transforms.ToTensor(),
-        transforms.Grayscale(3),
-        transforms.Normalize(0.0, 1.0)
+        transforms.Normalize(0.0, 1.0),
+        ColorJitter(brightness=0.25, contrast=0.25, saturation=0.25, hue=0.1) 
     ])
     
     # Load Datasets

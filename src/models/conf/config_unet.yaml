@@ -1,5 +1,5 @@
 cuda: 0
-name: 'v5'
+name: 'v6'
 
 log_wandb: True
 
