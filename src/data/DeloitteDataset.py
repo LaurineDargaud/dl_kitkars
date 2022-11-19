@@ -32,6 +32,7 @@ class DeloitteDataset(Dataset):
         rgb_img = (np.transpose(numpy_array[:3], (1, 2, 0))*255).astype(float)
         # get grayscale maske
         mask_img = numpy_array[3]
+        
         # get distinct classes list in image from mask
         # distinct_classes_list = list(set(mask_img.flatten()))
         # get filename
@@ -39,22 +40,26 @@ class DeloitteDataset(Dataset):
         # to tensor
         rgb_img = self.transform(rgb_img).type(torch.float)
         mask_img = self.transform_mask(mask_img).type(torch.int)
+            
         # return {'image':rgb_img, 'mask':mask_img, 'distinct_classes':distinct_classes_list, 'filename':filename, 'path':aNumpyFilePath}
         
         # apply feature extraction if exists
         if self.feature_extractor != None:
-            to_tensor = ToTensor()
+            # before torch.Size([3, 256, 256]) torch.Size([1, 256, 256])
             features = self.feature_extractor(rgb_img, mask_img[0])
-            rgb_img = to_tensor(features['pixel_values'][0]).type(torch.float)
-            mask_img = to_tensor(features['labels'][0]).type(torch.float)
-            
-        return rgb_img, mask_img
+            rgb_features = torch.FloatTensor(features['pixel_values'][0])
+            mask_features = torch.IntTensor(features['labels'][0])
+            mask_features = mask_features.view((1,mask_features.size(0), mask_features.size(1)))
+            # after torch.Size([3, 512, 512]) torch.Size([1, 512, 512])
+            return rgb_features, mask_img
+        else:
+            return rgb_img, mask_img
 
 from pathlib import Path
 import glob2
 import numpy as np
 
-def split_dataset(aPath, aTestTXTFilenamesPath, train_ratio=0.85, valid_ratio=0.15, seed_random=42, transform=None, feature_extractor=None):
+def split_dataset(aPath, aTestTXTFilenamesPath, train_ratio=0.85, valid_ratio=0.15, seed_random=42, transform=None, test_only_transform=None, feature_extractor=None):
     """_summary_
 
     :param aPath: path to folder that contains all npy data files
@@ -94,10 +99,7 @@ def split_dataset(aPath, aTestTXTFilenamesPath, train_ratio=0.85, valid_ratio=0.
             train_valid_data_list.append(aPath)
     
     # get test dataset
-    if transform == None:
-        test_dataset = DeloitteDataset(test_data_list)
-    else:
-        test_dataset = DeloitteDataset(test_data_list, transform)
+    test_dataset = DeloitteDataset(test_data_list, transform=test_only_transform, feature_extractor=feature_extractor)
     
     # get train and valid datasets
     train_valid_data_list = np.array(train_valid_data_list)
@@ -105,8 +107,8 @@ def split_dataset(aPath, aTestTXTFilenamesPath, train_ratio=0.85, valid_ratio=0.
     train_indices = permutation[:int(train_ratio*len(train_valid_data_list))]
     valid_indices = permutation[int(train_ratio*len(train_valid_data_list)):]
     
-    train_dataset = DeloitteDataset(list(train_valid_data_list[train_indices]), transform)
-    valid_dataset = DeloitteDataset(list(train_valid_data_list[valid_indices]), transform)
+    train_dataset = DeloitteDataset(list(train_valid_data_list[train_indices]), transform=transform, feature_extractor=feature_extractor)
+    valid_dataset = DeloitteDataset(list(train_valid_data_list[valid_indices]), transform=transform, feature_extractor=feature_extractor)
 
     
     return train_dataset, valid_dataset, test_dataset

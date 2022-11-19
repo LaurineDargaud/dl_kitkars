@@ -27,9 +27,8 @@ import torch.optim as optim
 
 import wandb
 
-def model_forward(input, model, size=(256,256)):
-    out = model(input) 
-    logits = out.logits # shape (batch_size, num_labels, height/4, width/4)
+def resize_logits(logits, size=(256,256)):
+    # logits shape (batch_size, num_labels, height/4, width/4)
     upsampled_logits = nn.functional.interpolate(
         logits,
         size=size, # (height, width)
@@ -121,7 +120,8 @@ def main(cfg):
     
     # Test the forward pass with dummy data
     logger.info('testing with dummy data')
-    out = model_forward(torch.randn(10, 3, 32, 32, device=device), model, size=(32,32))
+    out = model(torch.randn(10, 3, 32, 32, device=device)).logits
+    out = resize_logits(out, size=(32,32))
     assert out.size() == (10, cfg.segformer_parameters.nb_output_channels, 32, 32)
     
     # Set optimizer and schedulerd
@@ -159,9 +159,10 @@ def main(cfg):
             # Forward pass, compute gradients, perform one training step.
             optimizer.zero_grad()
             
-            # output = model(rgb_img)
-            output = model_forward(rgb_img, model)
+            output = model(rgb_img).logits
+            output = resize_logits(output, size=(mask_img.size(-2),mask_img.size(-1)))
             
+            # import pdb; pdb.set_trace()
             batch_loss = loss_fn(
                 output.flatten(start_dim=2, end_dim=len(output.size())-1), 
                 mask_img.flatten(start_dim=1, end_dim=len(mask_img.size())-1).type(torch.long)
@@ -197,7 +198,8 @@ def main(cfg):
                     model.eval()
                     for rgb_img, mask_img in valid_loader:
                         rgb_img, mask_img = rgb_img.to(device), mask_img.to(device)
-                        output = model_forward(rgb_img, model)
+                        output = model(rgb_img).logits
+                        output = resize_logits(output, size=(mask_img.size(-2),mask_img.size(-1)))
                         loss = loss_fn(
                             output.flatten(start_dim=2, end_dim=len(output.size())-1), 
                             mask_img.flatten(start_dim=1, end_dim=len(mask_img.size())-1).type(torch.long)

@@ -19,7 +19,7 @@ hyperparameters:
   num_workers: 32
   learning_rate: 1e-3
   weight_decay: 1E-3
-  num_epochs: 50
+  num_epochs: 100
   validation_every_steps: 100 #500
   T_max: 100
 
