@@ -83,11 +83,18 @@ test_environment:
 check_cuda:
 	$(PYTHON_INTERPRETER) src/check_cuda.py
 
+# UNET
+
 finetune_unet:
 	$(PYTHON_INTERPRETER) src/models/finetune_unet.py
 
 predict_unet:
 	$(PYTHON_INTERPRETER) src/models/predict_unet.py
+
+# SEGFORMER
+
+finetune_segformer:
+	$(PYTHON_INTERPRETER) src/models/finetune_segformer.py
 
 #################################################################################
 # Self Documenting Commands                                                     #

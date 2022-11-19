@@ -3,11 +3,23 @@ from torch.utils.data import Dataset
 from torchvision.transforms import ToTensor
 
 class DeloitteDataset(Dataset):
-    def __init__(self, data_list, transform=ToTensor(), transform_mask=ToTensor()):
-        # list of paths
+    def __init__(self, data_list, transform=None, transform_mask=None, feature_extractor=None):
+        # set list of paths
         self.data_list = data_list
-        self.transform = transform
-        self.transform_mask = transform_mask
+        # set transformation
+        if transform == None:
+            # default transformation
+            self.transform = ToTensor()
+        else:
+            self.transform = transform
+        # set mask transformation
+        if transform_mask == None:
+            # default mask transformation
+            self.transform_mask = ToTensor()
+        else:
+            self.transform_mask = transform_mask
+        # set feature extractor
+        self.feature_extractor = feature_extractor
 
     def __len__(self):
         return len(self.data_list)
@@ -28,13 +40,21 @@ class DeloitteDataset(Dataset):
         rgb_img = self.transform(rgb_img).type(torch.float)
         mask_img = self.transform_mask(mask_img).type(torch.int)
         # return {'image':rgb_img, 'mask':mask_img, 'distinct_classes':distinct_classes_list, 'filename':filename, 'path':aNumpyFilePath}
+        
+        # apply feature extraction if exists
+        if self.feature_extractor != None:
+            to_tensor = ToTensor()
+            features = self.feature_extractor(rgb_img, mask_img[0])
+            rgb_img = to_tensor(features['pixel_values'][0]).type(torch.float)
+            mask_img = to_tensor(features['labels'][0]).type(torch.float)
+            
         return rgb_img, mask_img
 
 from pathlib import Path
 import glob2
 import numpy as np
 
-def split_dataset(aPath, aTestTXTFilenamesPath, train_ratio=0.85, valid_ratio=0.15, seed_random=42, transform=None):
+def split_dataset(aPath, aTestTXTFilenamesPath, train_ratio=0.85, valid_ratio=0.15, seed_random=42, transform=None, feature_extractor=None):
     """_summary_
 
     :param aPath: path to folder that contains all npy data files
@@ -85,12 +105,8 @@ def split_dataset(aPath, aTestTXTFilenamesPath, train_ratio=0.85, valid_ratio=0.
     train_indices = permutation[:int(train_ratio*len(train_valid_data_list))]
     valid_indices = permutation[int(train_ratio*len(train_valid_data_list)):]
     
-    if transform == None:
-        train_dataset = DeloitteDataset(list(train_valid_data_list[train_indices]))
-        valid_dataset = DeloitteDataset(list(train_valid_data_list[valid_indices]))
-    else:
-        train_dataset = DeloitteDataset(list(train_valid_data_list[train_indices]), transform)
-        valid_dataset = DeloitteDataset(list(train_valid_data_list[valid_indices]), transform)
+    train_dataset = DeloitteDataset(list(train_valid_data_list[train_indices]), transform)
+    valid_dataset = DeloitteDataset(list(train_valid_data_list[valid_indices]), transform)
 
     
     return train_dataset, valid_dataset, test_dataset
