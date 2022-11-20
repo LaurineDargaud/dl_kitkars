@@ -96,6 +96,9 @@ predict_unet:
 finetune_segformer:
 	$(PYTHON_INTERPRETER) src/models/finetune_segformer.py
 
+predict_segformer:
+	$(PYTHON_INTERPRETER) src/models/predict_segformer.py
+
 #################################################################################
 # Self Documenting Commands                                                     #
 #################################################################################

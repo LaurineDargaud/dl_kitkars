@@ -5,7 +5,7 @@ log_wandb: True
 
 # For Predictions
 name_best: 'v0'
-predict_dataset: 'test'
+predict_dataset: 'valid'
 
 data_paths:
   clean_data: 'data/raw/carseg_data/clean_data'

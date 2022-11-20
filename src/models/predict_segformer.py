@@ -10,13 +10,18 @@ import numpy as np
 
 from src.data.DeloitteDataset import split_dataset
 
-from src.models.unet import UNet
+from src.visualization.visualization_fct import get_mask_names
+
+from transformers import SegformerFeatureExtractor
+from transformers import SegformerForSemanticSegmentation
 
 from torchvision import transforms
 
 from src.models.performance_metrics import dice_score
 
 from src.visualization.visualization_fct import mask_to_rgb
+
+from src.models.finetune_segformer import resize_logits
 
 import torch
 from torch.utils.data import DataLoader
@@ -33,6 +38,7 @@ def main(cfg):
     
     logger = logging.getLogger(__name__)
     logger.info(f'predict {dataset_to_predict} set with finetuned SegFormer model')
+
     
     # WANDB LOG
     if log_wandb:
@@ -59,11 +65,14 @@ def main(cfg):
     ])
     
     # Load Datasets
+    feature_extractor = SegformerFeatureExtractor()
+    
     logger.info(f'loading {dataset_to_predict} set')
     train_dataset, valid_dataset, testing_dataset = split_dataset(
         cfg.data_paths.clean_data, 
         cfg.data_paths.test_set_filenames,
-        transform=transformations
+        transform=transformations,
+        feature_extractor=feature_extractor
     )
     
     all_datasets = {
@@ -71,6 +80,19 @@ def main(cfg):
     }
     
     test_dataset = all_datasets[dataset_to_predict]
+    
+    # Load real img dataset - without extractor, for visualisation
+    train_raw_dataset, valid_raw_dataset, testing_raw_dataset = split_dataset(
+        cfg.data_paths.clean_data, 
+        cfg.data_paths.test_set_filenames,
+        transform=transformations
+    )
+    
+    all_raw_datasets = {
+        'train':train_raw_dataset, 'valid': valid_raw_dataset, 'test': testing_raw_dataset
+    }
+    
+    test_raw_dataset = all_raw_datasets[dataset_to_predict]
     
     batch_size=cfg.hyperparameters.batch_size
     
@@ -85,9 +107,16 @@ def main(cfg):
     )
     
     # Load model
-    logger.info('load U-net pretrained model')
-    model = UNet(n_channels=3, n_classes=cfg.unet_parameters.nb_output_channels)
-    model.load_state_dict(torch.load(cfg.model_paths.models+f'unet_finetuned_{name}.pt'))
+    logger.info('load SegFormer finetuned model')
+    pretrained_model_name = cfg.segformer_parameters.pretrained_name
+    id2label = get_mask_names()
+    label2id = {v: k for k, v in id2label.items()}
+    model = SegformerForSemanticSegmentation.from_pretrained(
+        pretrained_model_name,
+        id2label=id2label,
+        label2id=label2id
+    )
+    model.load_state_dict(torch.load(cfg.model_paths.models+f'segformer_finetuned_{name}.pt'))
     model = model.to(device)
     
     # Set loss function
@@ -105,7 +134,9 @@ def main(cfg):
         model.eval()
         for rgb_img, mask_img in tqdm(test_loader):
             rgb_img, mask_img = rgb_img.to(device), mask_img.to(device)
-            output = model(rgb_img)
+            output = model(rgb_img).logits
+            output = resize_logits(output, size=(mask_img.size(-2),mask_img.size(-1)))
+            
             loss = loss_fn(
                 output.flatten(start_dim=2, end_dim=len(output.size())-1), 
                 mask_img.flatten(start_dim=1, end_dim=len(mask_img.size())-1).type(torch.long)
@@ -148,16 +179,19 @@ def main(cfg):
         logger.info(f'creating wandb table for predictions visualization')
         
         # create a wandb.Table() with corresponding columns
-        columns=["id", "filename", "RGB image", "real mask", "prediction", "DICE score float", "DICE score"]
+        columns=["id", "filename", "RGB image", "features", "real mask", "prediction", "DICE score float", "DICE score"]
         test_table = wandb.Table(columns=columns)
         
-        for i in tqdm(range((len(test_dataset)))):            
-            rgb_image, mask_img = test_dataset[i]
+        for i in tqdm(range((len(test_raw_dataset)))):            
+            rgb_image, mask_img = test_raw_dataset[i]
+            rgb_features, _ = test_dataset[i]
             
             rgb_image = rgb_image.type(torch.int).cpu().detach().numpy()
             rgb_image = np.transpose(rgb_image, (1, 2, 0))
             mask_img = mask_img.cpu().detach().numpy()[0]
             mask_img = mask_to_rgb(mask_img)
+            rgb_features = rgb_features.type(torch.int).cpu().detach().numpy()
+            rgb_features = np.transpose(rgb_features, (1, 2, 0))
             
             logit_prediction = all_predictions[i]
             predicted_mask_img = mask_to_rgb(np.argmax(logit_prediction, axis=0))
@@ -167,6 +201,7 @@ def main(cfg):
                 i, 
                 filename, 
                 wandb.Image(rgb_image), 
+                wandb.Image(rgb_features), 
                 wandb.Image(mask_img), 
                 wandb.Image(predicted_mask_img),
                 all_dice_scores[i],
