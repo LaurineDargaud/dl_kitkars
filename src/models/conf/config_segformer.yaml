@@ -1,5 +1,5 @@
 cuda: 0
-name: 'v0'
+name: 'v1'
 
 log_wandb: True
 
@@ -16,7 +16,7 @@ model_paths:
 
 hyperparameters:
   batch_size: 32
-  num_workers: 32
+  num_workers: 24
   learning_rate: 1e-3
   weight_decay: 1E-3
   num_epochs: 100

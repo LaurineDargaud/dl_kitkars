@@ -81,11 +81,12 @@ def main(cfg):
     
     feature_extractor = SegformerFeatureExtractor()
     
-    train_dataset, valid_dataset, _ = split_dataset(
+    train_dataset, _, valid_dataset = split_dataset(
         cfg.data_paths.clean_data, 
         cfg.data_paths.test_set_filenames,
         transform=transformations,
-        feature_extractor=feature_extractor
+        feature_extractor=feature_extractor,
+        train_ratio=1.0, valid_ratio=0.0, 
     )
     
     batch_size=cfg.hyperparameters.batch_size

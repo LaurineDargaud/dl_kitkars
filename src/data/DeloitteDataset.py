@@ -104,11 +104,14 @@ def split_dataset(aPath, aTestTXTFilenamesPath, train_ratio=0.85, valid_ratio=0.
     # get train and valid datasets
     train_valid_data_list = np.array(train_valid_data_list)
     permutation = np.random.permutation(len(train_valid_data_list))
-    train_indices = permutation[:int(train_ratio*len(train_valid_data_list))]
-    valid_indices = permutation[int(train_ratio*len(train_valid_data_list)):]
     
-    train_dataset = DeloitteDataset(list(train_valid_data_list[train_indices]), transform=transform, feature_extractor=feature_extractor)
-    valid_dataset = DeloitteDataset(list(train_valid_data_list[valid_indices]), transform=transform, feature_extractor=feature_extractor)
-
-    
+    if valid_ratio != 0.0:
+        train_dataset = DeloitteDataset(list(train_valid_data_list), transform=transform, feature_extractor=feature_extractor)
+        valid_dataset = DeloitteDataset([])
+    else:
+        train_indices = permutation[:int(train_ratio*len(train_valid_data_list))]
+        valid_indices = permutation[int(train_ratio*len(train_valid_data_list)):]
+        train_dataset = DeloitteDataset(list(train_valid_data_list[train_indices]), transform=transform, feature_extractor=feature_extractor)
+        valid_dataset = DeloitteDataset(list(train_valid_data_list[valid_indices]), transform=transform, feature_extractor=feature_extractor)
+       
     return train_dataset, valid_dataset, test_dataset
