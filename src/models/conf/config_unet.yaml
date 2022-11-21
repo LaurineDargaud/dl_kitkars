@@ -1,7 +1,7 @@
 cuda: 0
 name: 'v5'
 
-log_wandb: True
+log_wandb: False
 
 # For Predictions
 name_best: 'v5'

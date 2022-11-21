@@ -4,7 +4,6 @@ from torchvision.transforms import ToTensor
 
 class DeloitteDataset(Dataset):
     def __init__(self, data_list, transform=ToTensor(), transform_mask=ToTensor()):
-        # list of paths
         self.data_list = data_list
         self.transform = transform
         self.transform_mask = transform_mask
@@ -34,7 +33,7 @@ from pathlib import Path
 import glob2
 import numpy as np
 
-def split_dataset(aPath, aTestTXTFilenamesPath, train_ratio=0.85, valid_ratio=0.15, seed_random=42, transform=None):
+def split_dataset(aPath, aTestTXTFilenamesPath, train_ratio=0.85, valid_ratio=0.15, seed_random=42, transform=None, data_real=False):
     """_summary_
 
     :param aPath: path to folder that contains all npy data files
@@ -79,8 +78,19 @@ def split_dataset(aPath, aTestTXTFilenamesPath, train_ratio=0.85, valid_ratio=0.
     else:
         test_dataset = DeloitteDataset(test_data_list, transform)
     
+    # clear dataset from the fake images
+    def processing(path_list):
+        real_data = []
+        for aPath in path_list:
+            if not ("DOOR" in aPath.stem or "OPEL" in aPath.stem):
+                real_data.append(aPath)
+        return real_data
+
     # get train and valid datasets
-    train_valid_data_list = np.array(train_valid_data_list)
+    if data_real:
+        train_valid_data_list = np.array(processing(train_valid_data_list))
+    else:
+        train_valid_data_list = np.array(train_valid_data_list)
     permutation = np.random.permutation(len(train_valid_data_list))
     train_indices = permutation[:int(train_ratio*len(train_valid_data_list))]
     valid_indices = permutation[int(train_ratio*len(train_valid_data_list)):]
