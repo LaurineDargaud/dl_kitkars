@@ -59,7 +59,7 @@ from pathlib import Path
 import glob2
 import numpy as np
 
-def split_dataset(aPath, aTestTXTFilenamesPath, train_ratio=0.85, valid_ratio=0.15, seed_random=42, transform=None, data_real=False):
+def split_dataset(aPath, aTestTXTFilenamesPath, train_ratio=0.85, valid_ratio=0.15, seed_random=42, transform=None, data_real=False, feature_extractor=None):
     """_summary_
 
     :param aPath: path to folder that contains all npy data files
