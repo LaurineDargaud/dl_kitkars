@@ -7,6 +7,7 @@ from dotenv import find_dotenv, load_dotenv
 import hydra
 from tqdm import tqdm
 import numpy as np
+import pandas as pd
 
 from src.data.DeloitteDataset import split_dataset
 
@@ -14,7 +15,7 @@ from src.models.unet import UNet
 
 from torchvision import transforms
 
-from src.models.performance_metrics import dice_score
+from src.models.performance_metrics import dice_score, dice_score_class
 
 from src.visualization.visualization_fct import mask_to_rgb
 
@@ -98,6 +99,9 @@ def main(cfg):
     test_loss = 0
     all_predictions = []
     all_dice_scores = []
+
+    dice_class = []
+    all_dice_class = []
     
     logger.info(f'running {dataset_to_predict} predictions')
     
@@ -121,34 +125,58 @@ def main(cfg):
                     mask_img.flatten(start_dim=1, end_dim=len(mask_img.size())-1)
                 ) * len(rgb_img)
             )
-            
+
+            # classes x batches
+            dice_class.append(
+                    dice_score_class(
+                        predictions, 
+                        mask_img.flatten(start_dim=1, end_dim=len(mask_img.size())-1)
+                    )
+                )
+  
             # Save output mask
             for i in range(len(output)):
                 all_predictions.append(output[i].cpu().detach().numpy())
                 all_dice_scores.append(
+                    float(dice_score_class(
+                        output[i].flatten(start_dim=1, end_dim=len(output.size())-2).unsqueeze(0),
+                        mask_img[i].flatten(start_dim=0, end_dim=len(mask_img.size())-2).unsqueeze(0)
+                    ))
+                )
+
+                all_dice_class.append(
                     float(dice_score(
                         output[i].flatten(start_dim=1, end_dim=len(output.size())-2).unsqueeze(0),
                         mask_img[i].flatten(start_dim=0, end_dim=len(mask_img.size())-2).unsqueeze(0)
                     ))
                 )
-    
+            
     # Get performance metrics
     test_dice_score = np.sum(test_dice_scores_batches) / len(test_dataset)
+    dice_class_average = np.array(dice_class).mean(0)
     print(f"Test DICE score: {test_dice_score}")
     print(f"[Check] Avg Test DICE score: {np.mean(all_dice_scores)}")
+    print(f"Average DICE score per class: {dice_class_average}")
     
     # wandb log
     if log_wandb:
         
-        wandb.log({
+        overview = {
             "test_dice_score": test_dice_score,
             "test_loss": test_loss.cpu().detach().numpy() / len(test_dataset)
-        })
+        }
+        
+        for i in range(len(dice_class_average)):
+            s = dice_class_average[i]
+            
+            overview["Class " + str(i)] = s
+
+        wandb.log(overview)
         
         logger.info(f'creating wandb table for predictions visualization')
         
         # create a wandb.Table() with corresponding columns
-        columns=["id", "filename", "RGB image", "real mask", "prediction", "DICE score float", "DICE score"]
+        columns=["id", "filename", "RGB image", "real mask", "prediction", "DICE score float", "DICE per class dict", "DICE score"]
         test_table = wandb.Table(columns=columns)
         
         for i in tqdm(range((len(test_dataset)))):            
@@ -170,6 +198,7 @@ def main(cfg):
                 wandb.Image(mask_img), 
                 wandb.Image(predicted_mask_img),
                 all_dice_scores[i],
+                str(all_dice_class[i]),
                 round(all_dice_scores[i]*100,3)
             )
         
