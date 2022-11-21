@@ -59,7 +59,7 @@ from pathlib import Path
 import glob2
 import numpy as np
 
-def split_dataset(aPath, aTestTXTFilenamesPath, train_ratio=0.85, valid_ratio=0.15, seed_random=42, transform=None, test_only_transform=None, feature_extractor=None):
+def split_dataset(aPath, aTestTXTFilenamesPath, train_ratio=0.85, valid_ratio=0.15, seed_random=42, transform=None, data_real=False):
     """_summary_
 
     :param aPath: path to folder that contains all npy data files
@@ -101,8 +101,19 @@ def split_dataset(aPath, aTestTXTFilenamesPath, train_ratio=0.85, valid_ratio=0.
     # get test dataset
     test_dataset = DeloitteDataset(test_data_list, transform=test_only_transform, feature_extractor=feature_extractor)
     
+    # clear dataset from the fake images
+    def processing(path_list):
+        real_data = []
+        for aPath in path_list:
+            if not ("DOOR" in aPath.stem or "OPEL" in aPath.stem):
+                real_data.append(aPath)
+        return real_data
+
     # get train and valid datasets
-    train_valid_data_list = np.array(train_valid_data_list)
+    if data_real:
+        train_valid_data_list = np.array(processing(train_valid_data_list))
+    else:
+        train_valid_data_list = np.array(train_valid_data_list)
     permutation = np.random.permutation(len(train_valid_data_list))
     
     if valid_ratio != 0.0:

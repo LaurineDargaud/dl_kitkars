@@ -70,7 +70,8 @@ def main(cfg):
     train_dataset, valid_dataset, _ = split_dataset(
         cfg.data_paths.clean_data, 
         cfg.data_paths.test_set_filenames,
-        transform=transformations
+        transform=transformations,
+        data_real=True
     )
     
     batch_size=cfg.hyperparameters.batch_size
