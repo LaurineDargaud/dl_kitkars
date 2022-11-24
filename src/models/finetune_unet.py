@@ -4,7 +4,7 @@ import logging
 from pathlib import Path
 from dotenv import find_dotenv, load_dotenv
 
-from torchvision.transforms import ColorJitter, RandomCrop, RandAugment, RandomRotation, TrivialAugmentWide
+from torchvision.transforms import ColorJitter
 
 import hydra
 from tqdm import tqdm
@@ -62,21 +62,27 @@ def main(cfg):
     device = torch.device(f'cuda:{cuda}')
     
     # Define image transformations
-    transformations = transforms.Compose([
+    transformations_img = transforms.Compose([
         transforms.ToTensor(),
-        # ColorJitter(brightness=0.25, contrast=0.25, saturation=0.25, hue=0.1),
-        # RandomCrop(),
-        # RandomAugment(),
-        # RandomRotation(),
+        ColorJitter(brightness=0.25, contrast=0.25, saturation=0.25, hue=0.1),
         transforms.Normalize(0.0, 1.0)
     ])
+    
+    # Define transformations to apply to both img and mask
+    transformations_both = {
+        'crop_resize': {
+            'scale':(0.08, 1.0),
+            'ratio':(0.75, 1.3333333333333333)
+        }
+    }
     
     # Load Datasets
     logger.info('loading datasets')
     train_dataset, valid_dataset, _ = split_dataset(
         cfg.data_paths.clean_data, 
         cfg.data_paths.test_set_filenames,
-        transform=transformations,
+        transform_img=transformations_img,
+        transform_both=transformations_both,
         data_real=cfg.data_augmentation.data_real,
         synthetic_data_ratio=cfg.data_augmentation.synthetic_data_ratio,
         train_valid_duplicate=cfg.data_augmentation.nb_train_valid_duplicate

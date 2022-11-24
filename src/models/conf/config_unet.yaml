@@ -1,11 +1,11 @@
 cuda: 0
-name: 'v9'
+name: 'v10'
 
 log_wandb: True
 
 # For Predictions
 name_best: 'v8'
-predict_dataset: 'test'
+predict_dataset: 'valid'
 
 data_paths:
   clean_data: 'data/raw/carseg_data/clean_data'
@@ -25,10 +25,13 @@ hyperparameters:
   T_max: 100
 
 data_augmentation:
-  data_real: False #True
-  nb_train_valid_duplicate: 1
-  synthetic_data_ratio: 0.0
+  data_real: True
+  nb_train_valid_duplicate: 2
+  synthetic_data_ratio: 0.1
 
+image:
+  height: 256
+  width: 256
 
 unet_parameters:
   nb_output_channels: 9
