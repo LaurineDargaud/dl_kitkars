@@ -58,6 +58,23 @@ class DeloitteDataset(Dataset):
 from pathlib import Path
 import glob2
 import numpy as np
+import random
+
+ # clear dataset from the fake images
+def processing(path_list, seed_random, ratio=0.1, duplicate=2):
+    np.random.seed(seed_random)
+    real_data = []
+    synt_data = []
+    for aPath in path_list:
+        if not ("DOOR" in aPath.stem or "OPEL" in aPath.stem):
+            real_data.append(aPath)
+        else:
+            synt_data.append(aPath)
+        stop = int(len(synt_data)*ratio)
+        random.shuffle(synt_data)
+        synt_slice = synt_data[slice(stop)]
+        together = (real_data + synt_slice)*duplicate
+    return together
 
 def split_dataset(aPath, aTestTXTFilenamesPath, train_ratio=0.85, valid_ratio=0.15, seed_random=42, transform=None, test_only_transform=None, data_real=False, feature_extractor=None):
     """_summary_
@@ -100,23 +117,15 @@ def split_dataset(aPath, aTestTXTFilenamesPath, train_ratio=0.85, valid_ratio=0.
     
     # get test dataset
     test_dataset = DeloitteDataset(test_data_list, transform=test_only_transform, feature_extractor=feature_extractor)
-    
-    # clear dataset from the fake images
-    def processing(path_list):
-        real_data = []
-        for aPath in path_list:
-            if not ("DOOR" in aPath.stem or "OPEL" in aPath.stem):
-                real_data.append(aPath)
-        return real_data
 
     # get train and valid datasets
     if data_real:
-        train_valid_data_list = np.array(processing(train_valid_data_list))
+        train_valid_data_list = np.array(processing(train_valid_data_list, seed_random=seed_random))
     else:
         train_valid_data_list = np.array(train_valid_data_list)
     permutation = np.random.permutation(len(train_valid_data_list))
     
-    if valid_ratio != 0.0:
+    if valid_ratio == 0.0:
         train_dataset = DeloitteDataset(list(train_valid_data_list), transform=transform, feature_extractor=feature_extractor)
         valid_dataset = DeloitteDataset([])
     else:
@@ -124,5 +133,6 @@ def split_dataset(aPath, aTestTXTFilenamesPath, train_ratio=0.85, valid_ratio=0.
         valid_indices = permutation[int(train_ratio*len(train_valid_data_list)):]
         train_dataset = DeloitteDataset(list(train_valid_data_list[train_indices]), transform=transform, feature_extractor=feature_extractor)
         valid_dataset = DeloitteDataset(list(train_valid_data_list[valid_indices]), transform=transform, feature_extractor=feature_extractor)
-       
+        
+
     return train_dataset, valid_dataset, test_dataset

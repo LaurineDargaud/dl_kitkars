@@ -63,7 +63,8 @@ def main(cfg):
     train_dataset, valid_dataset, testing_dataset = split_dataset(
         cfg.data_paths.clean_data, 
         cfg.data_paths.test_set_filenames,
-        transform=transformations
+        transform=transformations,
+        data_real=True
     )
     
     all_datasets = {
