@@ -8,6 +8,5 @@ def dice_score(preds, target, average_method = 'macro', mdmc_average='samplewise
 
 
 def dice_score_class(preds, target, average_method = 'none', mdmc_average= 'samplewise'):
-    x = dice_score(preds, target, average_method = average_method, mdmc_average= mdmc_average)
-    #import pdb; pdb.set_trace()
+    x = dice_score(preds = preds, target = target, average_method = average_method, mdmc_average= mdmc_average)
     return x

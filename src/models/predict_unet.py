@@ -11,6 +11,8 @@ import pandas as pd
 
 from src.data.DeloitteDataset import split_dataset
 
+from src.visualization.visualization_fct import _MASK_NAMES_
+
 from src.models.unet import UNet
 
 from torchvision import transforms
@@ -134,31 +136,31 @@ def main(cfg):
                         mask_img.flatten(start_dim=1, end_dim=len(mask_img.size())-1)
                     )
                 )
-  
+
             # Save output mask
             for i in range(len(output)):
                 all_predictions.append(output[i].cpu().detach().numpy())
-                all_dice_scores.append(
-                    float(dice_score_class(
+                #import pdb; pdb.set_trace()
+                #DICE PER CLASS PER IMAGE INSIDE BATCH
+                all_dice_scores.append(dice_score_class( # ADD FLOAT HERE IN CASE OF ANY ERROR
+                            output[i].flatten(start_dim=1, end_dim=len(output.size())-2).unsqueeze(0),
+                            mask_img[i].flatten(start_dim=0, end_dim=len(mask_img.size())-2).unsqueeze(0)
+                            )
+                        )
+
+                all_dice_class.append(dice_score( # DICE PER IMAGE INSIDE BATCH
                         output[i].flatten(start_dim=1, end_dim=len(output.size())-2).unsqueeze(0),
                         mask_img[i].flatten(start_dim=0, end_dim=len(mask_img.size())-2).unsqueeze(0)
-                    ))
+                    )
                 )
 
-                all_dice_class.append(
-                    float(dice_score(
-                        output[i].flatten(start_dim=1, end_dim=len(output.size())-2).unsqueeze(0),
-                        mask_img[i].flatten(start_dim=0, end_dim=len(mask_img.size())-2).unsqueeze(0)
-                    ))
-                )
-            
     # Get performance metrics
     test_dice_score = np.sum(test_dice_scores_batches) / len(test_dataset)
     dice_class_average = np.array(dice_class).mean(0)
     print(f"Test DICE score: {test_dice_score}")
     print(f"[Check] Avg Test DICE score: {np.mean(all_dice_scores)}")
     print(f"Average DICE score per class: {dice_class_average}")
-    
+
     # wandb log
     if log_wandb:
         
@@ -169,20 +171,18 @@ def main(cfg):
         
         for i in range(len(dice_class_average)):
             s = dice_class_average[i]
-            
-            overview["Class " + str(i)] = s
+            overview[f'DICE_{i}_{_MASK_NAMES_[i]}'] = s
 
         wandb.log(overview)
         
         logger.info(f'creating wandb table for predictions visualization')
         
         # create a wandb.Table() with corresponding columns
-        columns=["id", "filename", "RGB image", "real mask", "prediction", "DICE score float", "DICE per class dict", "DICE score"]
+        columns=["id", "filename", "RGB image", "real mask", "prediction", "DICE score float", "DICE score"] + [f"DICE_{i}_{j}" for i,j in _MASK_NAMES_.items()]
         test_table = wandb.Table(columns=columns)
         
         for i in tqdm(range((len(test_dataset)))):            
             rgb_image, mask_img = test_dataset[i]
-            
             rgb_image = rgb_image.type(torch.int).cpu().detach().numpy()
             rgb_image = np.transpose(rgb_image, (1, 2, 0))
             mask_img = mask_img.cpu().detach().numpy()[0]
@@ -192,6 +192,7 @@ def main(cfg):
             predicted_mask_img = mask_to_rgb(np.argmax(logit_prediction, axis=0))
             
             filename = test_dataset.data_list[i].name
+
             test_table.add_data(
                 i, 
                 filename, 
@@ -200,7 +201,16 @@ def main(cfg):
                 wandb.Image(predicted_mask_img),
                 all_dice_scores[i],
                 str(all_dice_class[i]),
-                round(all_dice_scores[i]*100,3)
+                np.round(all_dice_scores[i]*100,3)[0],
+                np.round(all_dice_scores[i]*100,3)[1],
+                np.round(all_dice_scores[i]*100,3)[2],
+                np.round(all_dice_scores[i]*100,3)[3],
+                np.round(all_dice_scores[i]*100,3)[4],
+                np.round(all_dice_scores[i]*100,3)[5],
+                np.round(all_dice_scores[i]*100,3)[6],
+                np.round(all_dice_scores[i]*100,3)[7],
+                np.round(all_dice_scores[i]*100,3)[8],
+                
             )
         
         wandb.log({"test_table": test_table})
