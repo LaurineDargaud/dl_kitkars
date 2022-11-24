@@ -4,7 +4,9 @@ import logging
 from pathlib import Path
 from dotenv import find_dotenv, load_dotenv
 
-from torchvision.transforms import ColorJitter, RandomCrop, RandAugment, RandomRotation, TrivialAugmentWide
+# from torchvision.transforms import ColorJitter
+from transformers import SegformerFeatureExtractor
+from transformers import SegformerForSemanticSegmentation
 
 import hydra
 from tqdm import tqdm
@@ -12,10 +14,9 @@ import numpy as np
 
 from src.data.DeloitteDataset import split_dataset
 
-from src.models.unet import UNet
-from src.models.unet import OutConv
-
 from src.models.performance_metrics import dice_score
+
+from src.visualization.visualization_fct import get_mask_names
 
 import torch
 from torch.utils.data import DataLoader
@@ -26,30 +27,40 @@ import torch.optim as optim
 
 import wandb
 
+def resize_logits(logits, size=(256,256)):
+    # logits shape (batch_size, num_labels, height/4, width/4)
+    upsampled_logits = nn.functional.interpolate(
+        logits,
+        size=size, # (height, width)
+        mode='bilinear',
+        align_corners=False
+    )
+    return upsampled_logits
+
 @click.command()
-@hydra.main(version_base=None, config_path='conf', config_name="config_unet")
+@hydra.main(version_base=None, config_path='conf', config_name="config_segformer")
 def main(cfg):
-    """ Fine tuning our U-Net pretrained model - baseline
+    """ Fine tuning a SegFormer pretrained model
     """
     logger = logging.getLogger(__name__)
-    logger.info('finetune UNet pretrained model')
+    logger.info('finetune SegFormer pretrained model')
     
     cuda, name, log_wandb = cfg.cuda, cfg.name, cfg.log_wandb
-
+    pretrained_model_name = cfg.segformer_parameters.pretrained_name
+    
     # WANDB LOG
     if log_wandb:
         logger.info('setting wandb logging system')
         wandb.init(
-            project="unet-finetuning", 
+            project="segformer-finetuning", 
             entity="kitkars", 
             name=name,
             config={
-                "pt_name":f'unet_finetuned_{name}.pt',
+                "pretrained_model_name":pretrained_model_name,
                 "learning_rate": cfg.hyperparameters.learning_rate,
                 "epochs": cfg.hyperparameters.num_epochs,
                 "batch_size": cfg.hyperparameters.batch_size,
                 "weight_decay": cfg.hyperparameters.weight_decay,
-                "finetuned_parameters": cfg.unet_parameters.to_finetune
             }
         )
     else:
@@ -61,20 +72,21 @@ def main(cfg):
     # Define image transformations
     transformations = transforms.Compose([
         transforms.ToTensor(),
-        # ColorJitter(brightness=0.25, contrast=0.25, saturation=0.25, hue=0.1),
-        # RandomCrop(),
-        # RandomAugment(),
-        # RandomRotation(),
         transforms.Normalize(0.0, 1.0)
+        # ColorJitter(brightness=0.25, contrast=0.25, saturation=0.25, hue=0.1)  #try data augment later
     ])
     
-    # Load Datasets
-    logger.info('loading datasets')
-    train_dataset, valid_dataset, _ = split_dataset(
+    # Load Datasets with Segformer feature extractor
+    logger.info('loading datasets with feature extraction')
+    
+    feature_extractor = SegformerFeatureExtractor()
+    
+    train_dataset, _, valid_dataset = split_dataset(
         cfg.data_paths.clean_data, 
         cfg.data_paths.test_set_filenames,
         transform=transformations,
-        data_real=True
+        feature_extractor=feature_extractor,
+        train_ratio=1.0, valid_ratio=0.0, 
     )
     
     batch_size=cfg.hyperparameters.batch_size
@@ -97,20 +109,23 @@ def main(cfg):
     )
     
     # Load model
-    logger.info('load U-net pretrained model')
-    model = UNet(n_channels=3, n_classes=2)
-    model.load_state_dict(torch.load(cfg.model_paths.unet_scale_05))
-    
-    # Replace final outc layer
-    model.outc = OutConv(64, cfg.unet_parameters.nb_output_channels)
+    logger.info('load SegFormer pretrained model')
+    id2label = get_mask_names()
+    label2id = {v: k for k, v in id2label.items()}
+    model = SegformerForSemanticSegmentation.from_pretrained(
+        pretrained_model_name,
+        id2label=id2label,
+        label2id=label2id
+    )
     model = model.to(device)
     
     # Test the forward pass with dummy data
     logger.info('testing with dummy data')
-    out = model(torch.randn(10, 3, 32, 32, device=device))
-    assert out.size() == (10, cfg.unet_parameters.nb_output_channels, 32, 32)
+    out = model(torch.randn(10, 3, 32, 32, device=device)).logits
+    out = resize_logits(out, size=(32,32))
+    assert out.size() == (10, cfg.segformer_parameters.nb_output_channels, 32, 32)
     
-    # Set optimizer and scheduler
+    # Set optimizer and schedulerd
     loss_fn = nn.CrossEntropyLoss()
     optimizer = optim.Adam(
         model.parameters(), 
@@ -118,16 +133,6 @@ def main(cfg):
         weight_decay = cfg.hyperparameters.weight_decay
     )
     scheduler = CosineAnnealingLR(optimizer, T_max=cfg.hyperparameters.T_max)
-    
-    # Freeze some parameters
-    logger.info('freezing wanted parameters')
-    for aName, param in model.named_parameters():
-        name_keyword = aName.split('.')[0]
-        if (cfg.unet_parameters.to_finetune == 'all') or (name_keyword in cfg.unet_parameters.to_finetune):
-            print('To finetune:', aName)
-            param.required_grad = True
-        else:
-            param.required_grad = False
     
     # Training loop
     num_epochs = cfg.hyperparameters.num_epochs
@@ -155,8 +160,10 @@ def main(cfg):
             # Forward pass, compute gradients, perform one training step.
             optimizer.zero_grad()
             
-            output = model(rgb_img)
+            output = model(rgb_img).logits
+            output = resize_logits(output, size=(mask_img.size(-2),mask_img.size(-1)))
             
+            # import pdb; pdb.set_trace()
             batch_loss = loss_fn(
                 output.flatten(start_dim=2, end_dim=len(output.size())-1), 
                 mask_img.flatten(start_dim=1, end_dim=len(mask_img.size())-1).type(torch.long)
@@ -192,7 +199,8 @@ def main(cfg):
                     model.eval()
                     for rgb_img, mask_img in valid_loader:
                         rgb_img, mask_img = rgb_img.to(device), mask_img.to(device)
-                        output = model(rgb_img)
+                        output = model(rgb_img).logits
+                        output = resize_logits(output, size=(mask_img.size(-2),mask_img.size(-1)))
                         loss = loss_fn(
                             output.flatten(start_dim=2, end_dim=len(output.size())-1), 
                             mask_img.flatten(start_dim=1, end_dim=len(mask_img.size())-1).type(torch.long)
@@ -220,7 +228,7 @@ def main(cfg):
                 valid_dice_score.append(np.sum(valid_dice_scores_batches) / len(valid_dataset))
         
                 print(f"Step {step:<5}   training DICE score: {train_dice_scores[-1]}")
-                print(f"             valid DICE score: {valid_dice_score[-1]}")
+                print(f"             test DICE score: {valid_dice_score[-1]}")
                 
                 # wandb log
                 if log_wandb:
@@ -240,7 +248,7 @@ def main(cfg):
     
     # Save model
     model.load_state_dict(best_model)
-    torch.save(model.state_dict(), cfg.model_paths.models+f'unet_finetuned_{name}.pt')     
+    torch.save(model.state_dict(), cfg.model_paths.models+f'segformer_finetuned_{name}.pt')     
     wandb.watch(model) #optional
 
 if __name__ == '__main__':
