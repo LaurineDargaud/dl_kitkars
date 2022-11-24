@@ -64,7 +64,9 @@ def main(cfg):
         cfg.data_paths.clean_data, 
         cfg.data_paths.test_set_filenames,
         transform=transformations,
-        data_real=True
+        data_real=cfg.data_augmentation.data_real,
+        synthetic_data_ratio=cfg.data_augmentation.synthetic_data_ratio,
+        train_valid_duplicate=cfg.data_augmentation.nb_train_valid_duplicate
     )
     
     all_datasets = {

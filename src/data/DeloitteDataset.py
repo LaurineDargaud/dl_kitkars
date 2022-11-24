@@ -76,7 +76,13 @@ def processing(path_list, seed_random, ratio=0.1, duplicate=2):
         together = (real_data + synt_slice)*duplicate
     return together
 
-def split_dataset(aPath, aTestTXTFilenamesPath, train_ratio=0.85, valid_ratio=0.15, seed_random=42, transform=None, test_only_transform=None, data_real=False, feature_extractor=None):
+def split_dataset(
+    aPath, aTestTXTFilenamesPath, 
+    train_ratio=0.85, valid_ratio=0.15, seed_random=42, 
+    transform=None, test_only_transform=None, 
+    data_real=False, 
+    feature_extractor=None,
+    synthetic_data_ratio=0.1, train_valid_duplicate=2):
     """_summary_
 
     :param aPath: path to folder that contains all npy data files
@@ -120,7 +126,9 @@ def split_dataset(aPath, aTestTXTFilenamesPath, train_ratio=0.85, valid_ratio=0.
 
     # get train and valid datasets
     if data_real:
-        train_valid_data_list = np.array(processing(train_valid_data_list, seed_random=seed_random))
+        train_valid_data_list = np.array(
+            processing(train_valid_data_list,  seed_random=seed_random, ratio=synthetic_data_ratio, duplicate=train_valid_duplicate)
+        )
     else:
         train_valid_data_list = np.array(train_valid_data_list)
     permutation = np.random.permutation(len(train_valid_data_list))

@@ -49,7 +49,10 @@ def main(cfg):
                 "epochs": cfg.hyperparameters.num_epochs,
                 "batch_size": cfg.hyperparameters.batch_size,
                 "weight_decay": cfg.hyperparameters.weight_decay,
-                "finetuned_parameters": cfg.unet_parameters.to_finetune
+                "finetuned_parameters": cfg.unet_parameters.to_finetune,
+                "data_real_processing": cfg.data_augmentation.data_real,
+                "ratio_synthetic_data": cfg.data_augmentation.synthetic_data_ratio,
+                "nb_duplicate": cfg.data_augmentation.nb_train_valid_duplicate
             }
         )
     else:
@@ -74,7 +77,9 @@ def main(cfg):
         cfg.data_paths.clean_data, 
         cfg.data_paths.test_set_filenames,
         transform=transformations,
-        data_real=True
+        data_real=cfg.data_augmentation.data_real,
+        synthetic_data_ratio=cfg.data_augmentation.synthetic_data_ratio,
+        train_valid_duplicate=cfg.data_augmentation.nb_train_valid_duplicate
     )
     
     batch_size=cfg.hyperparameters.batch_size
