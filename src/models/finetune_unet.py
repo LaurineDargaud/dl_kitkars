@@ -4,7 +4,7 @@ import logging
 from pathlib import Path
 from dotenv import find_dotenv, load_dotenv
 
-from torchvision.transforms import ColorJitter
+from torchvision.transforms import ColorJitter, RandomCrop, RandAugment, RandomRotation, TrivialAugmentWide
 
 import hydra
 from tqdm import tqdm
@@ -62,6 +62,9 @@ def main(cfg):
     transformations = transforms.Compose([
         transforms.ToTensor(),
         # ColorJitter(brightness=0.25, contrast=0.25, saturation=0.25, hue=0.1),
+        # RandomCrop(),
+        # RandomAugment(),
+        # RandomRotation(),
         transforms.Normalize(0.0, 1.0)
     ])
     
@@ -217,7 +220,7 @@ def main(cfg):
                 valid_dice_score.append(np.sum(valid_dice_scores_batches) / len(valid_dataset))
         
                 print(f"Step {step:<5}   training DICE score: {train_dice_scores[-1]}")
-                print(f"             test DICE score: {valid_dice_score[-1]}")
+                print(f"             valid DICE score: {valid_dice_score[-1]}")
                 
                 # wandb log
                 if log_wandb:
