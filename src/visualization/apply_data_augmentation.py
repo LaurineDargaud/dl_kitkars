@@ -44,9 +44,8 @@ def main(cfg, max_render=100):
     transformations_img = transforms.Compose([
         transforms.ToTensor(),
         #ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.1),
-        # ColorJitter(brightness=0.1),
-        transforms.Normalize(0.0, 1.0),
         ColorJitter(brightness=0.1),
+        transforms.Normalize(0.0, 1.0),
     ])
     
     # Define transformations to apply to both img and mask
@@ -95,7 +94,8 @@ def main(cfg, max_render=100):
         for i in tqdm(random_idx[:max_render]):            
             rgb_image, mask_img = test_dataset[i]
             
-            rgb_image = rgb_image.type(torch.int).cpu().detach().numpy()
+            #rgb_image = rgb_image.type(torch.int).cpu().detach().numpy()
+            rgb_image = rgb_image.cpu().detach().numpy()
             rgb_image = np.transpose(rgb_image, (1, 2, 0))
             mask_img = mask_img.cpu().detach().numpy()[0]
             mask_img = mask_to_rgb(mask_img)
