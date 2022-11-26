@@ -1,8 +1,9 @@
 cuda: 0
-name: 'v10'
+name: 'v9_extended'
 
 log_wandb: True
 
+reuse_finetune: 'v9'
 # For Predictions
 name_best: 'v8'
 predict_dataset: 'valid'
