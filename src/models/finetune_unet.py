@@ -64,17 +64,17 @@ def main(cfg):
     # Define image transformations
     transformations_img = transforms.Compose([
         transforms.ToTensor(),
-        ColorJitter(brightness=0.25, contrast=0.25, saturation=0.25, hue=0.1),
+        #ColorJitter(brightness=0.25, contrast=0.25, saturation=0.25, hue=0.1),
         transforms.Normalize(0.0, 1.0)
     ])
     
     # Define transformations to apply to both img and mask
-    transformations_both = {
-        'crop_resize': {
-            'scale':(0.08, 1.0),
-            'ratio':(0.75, 1.3333333333333333)
-        }
-    }
+    transformations_both = None#{
+     #   'crop_resize': {
+      #      'scale':(0.08, 1.0),
+       #     'ratio':(0.75, 1.3333333333333333)
+        #}
+    #}
     
     # Load Datasets
     logger.info('loading datasets')
@@ -108,13 +108,18 @@ def main(cfg):
     )
     
     # Load model
-    logger.info('load U-net pretrained model')
-    model = UNet(n_channels=3, n_classes=2)
-    model.load_state_dict(torch.load(cfg.model_paths.unet_scale_05))
-    
-    # Replace final outc layer
-    model.outc = OutConv(64, cfg.unet_parameters.nb_output_channels)
-    model = model.to(device)
+    if cfg.reuse_finetune == None:
+        logger.info('load U-net pretrained model')
+        model = UNet(n_channels=3, n_classes=2)
+        model.load_state_dict(torch.load(cfg.model_paths.unet_scale_05))
+        # Replace final outc layer
+        model.outc = OutConv(64, cfg.unet_parameters.nb_output_channels)
+        model = model.to(device)
+    else:
+        logger.info('load U-net pretrained model')
+        model = UNet(n_channels=3, n_classes=cfg.unet_parameters.nb_output_channels)
+        model.load_state_dict(torch.load(cfg.model_paths.models+f'unet_finetuned_{cfg.reuse_finetune}.pt'))
+        model = model.to(device)
     
     # Test the forward pass with dummy data
     logger.info('testing with dummy data')
