@@ -12,8 +12,6 @@ from src.data.DeloitteDataset import split_dataset
 
 from src.models.unet import UNet
 
-from torchvision import transforms
-
 from src.models.performance_metrics import dice_score
 
 from src.visualization.visualization_fct import mask_to_rgb
@@ -53,10 +51,7 @@ def main(cfg):
     device = torch.device(f'cuda:{cuda}')
     
     # Define image transformations
-    transformations_img = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize(0.0, 1.0)
-    ])
+    transformations_img = None
     
     # Define transformations to apply to both img and mask
     transformations_both = None

@@ -10,11 +10,7 @@ class DeloitteDataset(Dataset):
         # set list of paths
         self.data_list = data_list
         # set rgb img transformation
-        if transform_img == None:
-            # default transformation
-            self.transform_img = ToTensor()
-        else:
-            self.transform_img = transform_img
+        self.transform_img = transform_img
         # set both transformations
         self.transform_both = transform_both
         # set mask transformation
@@ -80,7 +76,11 @@ class DeloitteDataset(Dataset):
         # filename = aNumpyFilePath.stem
         # to tensor
         rgb_img = torch.Tensor(rgb_img).type(torch.uint8)
-        rgb_img = self.transform_img(rgb_img).type(torch.float)
+        if self.transform_img != None:
+            rgb_img = self.transform_img(rgb_img).type(torch.float)
+        else:
+            rgb_img = rgb_img.type(torch.float)
+            
         mask_img = self.transform_mask(mask_img).type(torch.int)
             
         # apply transformations to both if provided

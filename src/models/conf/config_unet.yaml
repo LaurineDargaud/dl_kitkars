@@ -6,8 +6,10 @@ log_wandb: True
 reuse_finetune: 'v9_extended'
 
 # For Predictions
-name_best: 'v8'
-predict_dataset: 'valid'
+name_best: 'v9_data_augmented'
+predict_dataset: 'test' #test or valid
+
+# # # # # # # # # #
 
 data_paths:
   clean_data: 'data/raw/carseg_data/clean_data'
