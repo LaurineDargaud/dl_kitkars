@@ -56,18 +56,21 @@ def main(cfg):
     device = torch.device(f'cuda:{cuda}')
     
     # Define image transformations
-    transformations = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize(0.0, 1.0)
-    ])
+    transformations_img = None
+    
+    # Define transformations to apply to both img and mask
+    transformations_both = None
     
     # Load Datasets
     logger.info(f'loading {dataset_to_predict} set')
     train_dataset, valid_dataset, testing_dataset = split_dataset(
         cfg.data_paths.clean_data, 
         cfg.data_paths.test_set_filenames,
-        transform=transformations,
-        data_real=True
+        transform_img=transformations_img,
+        transform_both=transformations_both,
+        data_real=cfg.data_augmentation.data_real,
+        synthetic_data_ratio=cfg.data_augmentation.synthetic_data_ratio,
+        train_valid_duplicate=cfg.data_augmentation.nb_train_valid_duplicate
     )
     
     all_datasets = {

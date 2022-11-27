@@ -83,6 +83,12 @@ test_environment:
 check_cuda:
 	$(PYTHON_INTERPRETER) src/check_cuda.py
 
+
+# Data augmentation visualisation
+
+viz_data_augment:
+	$(PYTHON_INTERPRETER) src/visualization/apply_data_augmentation.py
+
 # UNET
 
 finetune_unet:

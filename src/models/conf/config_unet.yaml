@@ -1,11 +1,15 @@
 cuda: 0
-name: 'v9'
+name: 'v9_data_augmented'
 
 log_wandb: True
 
+reuse_finetune: 'v9_extended'
+
 # For Predictions
-name_best: 'v9'
-predict_dataset: 'test'
+name_best: 'v9_data_augmented'
+predict_dataset: 'test' #test or valid
+
+# # # # # # # # # #
 
 data_paths:
   clean_data: 'data/raw/carseg_data/clean_data'
@@ -20,10 +24,18 @@ hyperparameters:
   num_workers: 32
   learning_rate: 1e-3
   weight_decay: 1E-3
-  num_epochs: 100
+  num_epochs: 100 #100
   validation_every_steps: 100 #500
   T_max: 100
+
+data_augmentation:
   data_real: True
+  nb_train_valid_duplicate: 1
+  synthetic_data_ratio: 0.1
+
+image:
+  height: 256
+  width: 256
 
 unet_parameters:
   nb_output_channels: 9
