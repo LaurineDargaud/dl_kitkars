@@ -7,8 +7,9 @@ reuse_finetune: 'v13bis'
 
 # For Predictions
 name_best: 'v9_data_augmented'
-predict_dataset: 'valid' #test or valid
-save_predictions_path: 'data/predictions' # None
+predict_dataset: 'test' #test or valid
+post_processing: True
+save_predictions_path: False # 'data/predictions'
 
 # # # # # # # # # #
 

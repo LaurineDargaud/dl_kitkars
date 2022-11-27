@@ -21,6 +21,8 @@ from src.models.performance_metrics import dice_score, dice_score_class
 
 from src.visualization.visualization_fct import mask_to_rgb
 
+from src.models.post_processing_fct import post_processing
+
 import torch
 from torch.utils.data import DataLoader
 from torch import nn
@@ -194,10 +196,16 @@ def main(cfg):
             rgb_image = rgb_image.cpu().detach().numpy()
             rgb_image = np.transpose(rgb_image, (1, 2, 0))
             mask_img = mask_img.cpu().detach().numpy()[0]
-            mask_img = mask_to_rgb(mask_img)
             
             logit_prediction = all_predictions[i]
-            predicted_mask_img = mask_to_rgb(np.argmax(logit_prediction, axis=0))
+            predicted_mask_img = np.argmax(logit_prediction, axis=0)
+            
+            if cfg.post_processing:
+                processed_mask_img = post_processing(predicted_mask_img)
+                processed_mask_img = mask_to_rgb(processed_mask_img)
+            
+            mask_img = mask_to_rgb(mask_img)
+            predicted_mask_img = mask_to_rgb(predicted_mask_img)
             
             filename = test_dataset.data_list[i].name
 
@@ -220,7 +228,7 @@ def main(cfg):
         wandb.log({"Bar_chart": wandb.plot.bar(wandb.Table(data=data, columns = ["Classes", "Percentage"]) , "Classes", "Percentage", title= "Classes Bar Chart")})
     
     # save predictions
-    if cfg.save_predictions_path != None:
+    if cfg.save_predictions_path != False:
         
         logger.info(f'save predictions locally')
         
