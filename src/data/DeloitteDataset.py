@@ -2,8 +2,8 @@ import torch
 from torch.utils.data import Dataset
 from torchvision.transforms import ToTensor
 
-from torchvision.transforms.functional import crop, resize
-from torchvision.transforms import RandomResizedCrop
+from torchvision.transforms.functional import crop, resize, hflip, perspective
+from torchvision.transforms import RandomResizedCrop, RandomPerspective, Normalize
 
 class DeloitteDataset(Dataset):
     def __init__(self, data_list, transform_img=None, transform_mask=None, transform_both=None, feature_extractor=None):
@@ -30,6 +30,8 @@ class DeloitteDataset(Dataset):
         return len(self.data_list)
     
     def apply_transformation(self, aKeyword, correspondingParams, aRGBImg, aMask):
+        output_rgb_img = aRGBImg
+        output_mask = aMask
         if aKeyword == 'crop_resize':
             # get parameters for both img and mask
             transformer = RandomResizedCrop((aRGBImg.size(-2),aRGBImg.size(-1)))
@@ -41,6 +43,25 @@ class DeloitteDataset(Dataset):
             # resize to original size
             output_rgb_img = resize(output_rgb_img, (aRGBImg.size(-2),aRGBImg.size(-1)))
             output_mask = resize(output_mask, (aRGBImg.size(-2),aRGBImg.size(-1)))
+        
+        elif aKeyword == 'random_hflip':
+            # get probability
+            p = correspondingParams['p']
+            # get random number
+            s = np.random.binomial(1, p)
+            if s == 1:
+                # do the h flip
+                output_rgb_img = hflip(aRGBImg)
+                output_mask = hflip(aMask)
+        
+        elif aKeyword == 'random_perspective':
+            # get parameters for both img and mask
+            transformer = RandomPerspective()
+            startpoints , endpoints = transformer.get_params(aRGBImg.size(-1), aRGBImg.size(-2), **correspondingParams)
+            # apply perspective
+            output_rgb_img = perspective(aRGBImg, startpoints , endpoints )
+            output_mask = perspective(aMask, startpoints, endpoints )
+        
         return output_rgb_img, output_mask
 
     def __getitem__(self, idx):
@@ -48,7 +69,8 @@ class DeloitteDataset(Dataset):
         # load npy array
         numpy_array = np.load(aNumpyFilePath)
         # get RGB image
-        rgb_img = (np.transpose(numpy_array[:3], (1, 2, 0))*255).astype(float)
+        # rgb_img = (np.transpose(numpy_array[:3], (1, 2, 0))*255).astype(float)
+        rgb_img = (numpy_array[:3]*255)
         # get grayscale maske
         mask_img = numpy_array[3]
         
@@ -57,6 +79,7 @@ class DeloitteDataset(Dataset):
         # get filename
         # filename = aNumpyFilePath.stem
         # to tensor
+        rgb_img = torch.Tensor(rgb_img).type(torch.uint8)
         rgb_img = self.transform_img(rgb_img).type(torch.float)
         mask_img = self.transform_mask(mask_img).type(torch.int)
             
@@ -64,6 +87,12 @@ class DeloitteDataset(Dataset):
         if self.transform_both != None:
             for aTransformation, correspondingParams in self.transform_both.items():
                 rgb_img, mask_img = self.apply_transformation(aTransformation, correspondingParams, rgb_img, mask_img)
+        
+        # transpose
+        # rgb_img = rgb_img.view((rgb_img.size(2), rgb_img.size(0), rgb_img.size(1)))
+        
+        # normalization
+        rgb_img = Normalize(0.0, 1.0).forward(rgb_img)
         
         # apply feature extraction if exists
         if self.feature_extractor != None:

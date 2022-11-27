@@ -10,13 +10,11 @@ import numpy as np
 
 from src.data.DeloitteDataset import split_dataset
 
-from torchvision.transforms import ColorJitter
+from torchvision.transforms import AutoAugment, AutoAugmentPolicy, ColorJitter
 
 from torchvision import transforms
 
 from src.visualization.visualization_fct import mask_to_rgb
-
-import torch
 
 import wandb
 
@@ -42,18 +40,21 @@ def main(cfg, max_render=100):
     
     # Define image transformations
     transformations_img = transforms.Compose([
-        transforms.ToTensor(),
-        #ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.1),
-        ColorJitter(brightness=0.1),
-        transforms.Normalize(0.0, 1.0),
+        # transforms.ToTensor(),
+        # AutoAugment(AutoAugmentPolicy.CIFAR10),
+        ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.1),
+        #ColorJitter(brightness=0.1),
+        # transforms.Normalize(0.0, 1.0),
     ])
     
     # Define transformations to apply to both img and mask
     transformations_both = {
         'crop_resize': {
-            'scale':(0.08, 1.0),
-            'ratio':(0.75, 1.3333333333333333)
-        }
+            'scale':(0.25, 1.0),
+            'ratio':(1.0,1.0)
+        },
+        'random_hflip':{'p':0.5},
+        'random_perspective':{'distortion_scale': 0.5 }
     }
     
     # Load Datasets

@@ -69,7 +69,7 @@ def main(cfg):
     ])
     
     # Define transformations to apply to both img and mask
-    transformations_both = None#{
+    transformations_both = None #{
      #   'crop_resize': {
       #      'scale':(0.08, 1.0),
        #     'ratio':(0.75, 1.3333333333333333)
