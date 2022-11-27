@@ -4,7 +4,7 @@ import logging
 from pathlib import Path
 from dotenv import find_dotenv, load_dotenv
 
-from torchvision.transforms import ColorJitter, RandomCrop, RandAugment, RandomRotation, TrivialAugmentWide
+from torchvision.transforms import ColorJitter
 
 import hydra
 from tqdm import tqdm
@@ -49,7 +49,10 @@ def main(cfg):
                 "epochs": cfg.hyperparameters.num_epochs,
                 "batch_size": cfg.hyperparameters.batch_size,
                 "weight_decay": cfg.hyperparameters.weight_decay,
-                "finetuned_parameters": cfg.unet_parameters.to_finetune
+                "finetuned_parameters": cfg.unet_parameters.to_finetune,
+                "data_real_processing": cfg.data_augmentation.data_real,
+                "ratio_synthetic_data": cfg.data_augmentation.synthetic_data_ratio,
+                "nb_duplicate": cfg.data_augmentation.nb_train_valid_duplicate
             }
         )
     else:
@@ -59,22 +62,30 @@ def main(cfg):
     device = torch.device(f'cuda:{cuda}')
     
     # Define image transformations
-    transformations = transforms.Compose([
-        transforms.ToTensor(),
-        # ColorJitter(brightness=0.25, contrast=0.25, saturation=0.25, hue=0.1),
-        # RandomCrop(),
-        # RandomAugment(),
-        # RandomRotation(),
-        transforms.Normalize(0.0, 1.0)
-    ])
+    transformations_img = transforms.Compose(
+        [ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.1)]
+        )
+    
+    # Define transformations to apply to both img and mask
+    transformations_both = {
+        'crop_resize': {
+            'scale':(0.25, 1.0),
+            'ratio':(1.0,1.0)
+        },
+        'random_hflip':{'p':0.5},
+        'random_perspective':{'distortion_scale': 0.5 }
+    }
     
     # Load Datasets
     logger.info('loading datasets')
     train_dataset, valid_dataset, _ = split_dataset(
         cfg.data_paths.clean_data, 
         cfg.data_paths.test_set_filenames,
-        transform=transformations,
-        data_real=True
+        transform_img=transformations_img,
+        transform_both=transformations_both,
+        data_real=cfg.data_augmentation.data_real,
+        synthetic_data_ratio=cfg.data_augmentation.synthetic_data_ratio,
+        train_valid_duplicate=cfg.data_augmentation.nb_train_valid_duplicate
     )
     
     batch_size=cfg.hyperparameters.batch_size
@@ -97,13 +108,18 @@ def main(cfg):
     )
     
     # Load model
-    logger.info('load U-net pretrained model')
-    model = UNet(n_channels=3, n_classes=2)
-    model.load_state_dict(torch.load(cfg.model_paths.unet_scale_05))
-    
-    # Replace final outc layer
-    model.outc = OutConv(64, cfg.unet_parameters.nb_output_channels)
-    model = model.to(device)
+    if cfg.reuse_finetune == None:
+        logger.info('load U-net pretrained model')
+        model = UNet(n_channels=3, n_classes=2)
+        model.load_state_dict(torch.load(cfg.model_paths.unet_scale_05))
+        # Replace final outc layer
+        model.outc = OutConv(64, cfg.unet_parameters.nb_output_channels)
+        model = model.to(device)
+    else:
+        logger.info('load U-net pretrained model')
+        model = UNet(n_channels=3, n_classes=cfg.unet_parameters.nb_output_channels)
+        model.load_state_dict(torch.load(cfg.model_paths.models+f'unet_finetuned_{cfg.reuse_finetune}.pt'))
+        model = model.to(device)
     
     # Test the forward pass with dummy data
     logger.info('testing with dummy data')

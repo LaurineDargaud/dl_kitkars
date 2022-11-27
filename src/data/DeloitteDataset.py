@@ -2,16 +2,21 @@ import torch
 from torch.utils.data import Dataset
 from torchvision.transforms import ToTensor
 
+from torchvision.transforms.functional import crop, resize, hflip, perspective
+from torchvision.transforms import RandomResizedCrop, RandomPerspective, Normalize
+
 class DeloitteDataset(Dataset):
-    def __init__(self, data_list, transform=None, transform_mask=None, feature_extractor=None):
+    def __init__(self, data_list, transform_img=None, transform_mask=None, transform_both=None, feature_extractor=None):
         # set list of paths
         self.data_list = data_list
-        # set transformation
-        if transform == None:
+        # set rgb img transformation
+        if transform_img == None:
             # default transformation
-            self.transform = ToTensor()
+            self.transform_img = ToTensor()
         else:
-            self.transform = transform
+            self.transform_img = transform_img
+        # set both transformations
+        self.transform_both = transform_both
         # set mask transformation
         if transform_mask == None:
             # default mask transformation
@@ -23,13 +28,49 @@ class DeloitteDataset(Dataset):
 
     def __len__(self):
         return len(self.data_list)
+    
+    def apply_transformation(self, aKeyword, correspondingParams, aRGBImg, aMask):
+        output_rgb_img = aRGBImg
+        output_mask = aMask
+        if aKeyword == 'crop_resize':
+            # get parameters for both img and mask
+            transformer = RandomResizedCrop((aRGBImg.size(-2),aRGBImg.size(-1)))
+            parameters = transformer.get_params(aRGBImg, **correspondingParams)
+            parameters = dict(zip(['top','left','height','width'], parameters))
+            # apply crop
+            output_rgb_img = crop(aRGBImg, **parameters)
+            output_mask = crop(aMask, **parameters)
+            # resize to original size
+            output_rgb_img = resize(output_rgb_img, (aRGBImg.size(-2),aRGBImg.size(-1)))
+            output_mask = resize(output_mask, (aRGBImg.size(-2),aRGBImg.size(-1)))
+        
+        elif aKeyword == 'random_hflip':
+            # get probability
+            p = correspondingParams['p']
+            # get random number
+            s = np.random.binomial(1, p)
+            if s == 1:
+                # do the h flip
+                output_rgb_img = hflip(aRGBImg)
+                output_mask = hflip(aMask)
+        
+        elif aKeyword == 'random_perspective':
+            # get parameters for both img and mask
+            transformer = RandomPerspective()
+            startpoints , endpoints = transformer.get_params(aRGBImg.size(-1), aRGBImg.size(-2), **correspondingParams)
+            # apply perspective
+            output_rgb_img = perspective(aRGBImg, startpoints , endpoints )
+            output_mask = perspective(aMask, startpoints, endpoints )
+        
+        return output_rgb_img, output_mask
 
     def __getitem__(self, idx):
         aNumpyFilePath = self.data_list[idx]
         # load npy array
         numpy_array = np.load(aNumpyFilePath)
         # get RGB image
-        rgb_img = (np.transpose(numpy_array[:3], (1, 2, 0))*255).astype(float)
+        # rgb_img = (np.transpose(numpy_array[:3], (1, 2, 0))*255).astype(float)
+        rgb_img = (numpy_array[:3]*255)
         # get grayscale maske
         mask_img = numpy_array[3]
         
@@ -38,10 +79,20 @@ class DeloitteDataset(Dataset):
         # get filename
         # filename = aNumpyFilePath.stem
         # to tensor
-        rgb_img = self.transform(rgb_img).type(torch.float)
+        rgb_img = torch.Tensor(rgb_img).type(torch.uint8)
+        rgb_img = self.transform_img(rgb_img).type(torch.float)
         mask_img = self.transform_mask(mask_img).type(torch.int)
             
-        # return {'image':rgb_img, 'mask':mask_img, 'distinct_classes':distinct_classes_list, 'filename':filename, 'path':aNumpyFilePath}
+        # apply transformations to both if provided
+        if self.transform_both != None:
+            for aTransformation, correspondingParams in self.transform_both.items():
+                rgb_img, mask_img = self.apply_transformation(aTransformation, correspondingParams, rgb_img, mask_img)
+        
+        # transpose
+        # rgb_img = rgb_img.view((rgb_img.size(2), rgb_img.size(0), rgb_img.size(1)))
+        
+        # normalization
+        rgb_img = Normalize(0.0, 1.0).forward(rgb_img)
         
         # apply feature extraction if exists
         if self.feature_extractor != None:
@@ -76,7 +127,13 @@ def processing(path_list, seed_random, ratio=0.1, duplicate=2):
         together = (real_data + synt_slice)*duplicate
     return together
 
-def split_dataset(aPath, aTestTXTFilenamesPath, train_ratio=0.85, valid_ratio=0.15, seed_random=42, transform=None, test_only_transform=None, data_real=False, feature_extractor=None):
+def split_dataset(
+    aPath, aTestTXTFilenamesPath, 
+    train_ratio=0.85, valid_ratio=0.15, seed_random=42, 
+    transform_img=None, transform_mask=None, transform_both=None, test_only_transform=None, 
+    data_real=False, 
+    feature_extractor=None,
+    synthetic_data_ratio=0.1, train_valid_duplicate=2):
     """_summary_
 
     :param aPath: path to folder that contains all npy data files
@@ -116,23 +173,20 @@ def split_dataset(aPath, aTestTXTFilenamesPath, train_ratio=0.85, valid_ratio=0.
             train_valid_data_list.append(aPath)
     
     # get test dataset
-    test_dataset = DeloitteDataset(test_data_list, transform=test_only_transform, feature_extractor=feature_extractor)
+    test_dataset = DeloitteDataset(test_data_list, transform_img=test_only_transform, feature_extractor=feature_extractor)
 
     # get train and valid datasets
     if data_real:
-        train_valid_data_list = np.array(processing(train_valid_data_list, seed_random=seed_random))
+        train_valid_data_list = np.array(
+            processing(train_valid_data_list,  seed_random=seed_random, ratio=synthetic_data_ratio, duplicate=train_valid_duplicate)
+        )
     else:
         train_valid_data_list = np.array(train_valid_data_list)
     permutation = np.random.permutation(len(train_valid_data_list))
     
-    if valid_ratio == 0.0:
-        train_dataset = DeloitteDataset(list(train_valid_data_list), transform=transform, feature_extractor=feature_extractor)
-        valid_dataset = DeloitteDataset([])
-    else:
-        train_indices = permutation[:int(train_ratio*len(train_valid_data_list))]
-        valid_indices = permutation[int(train_ratio*len(train_valid_data_list)):]
-        train_dataset = DeloitteDataset(list(train_valid_data_list[train_indices]), transform=transform, feature_extractor=feature_extractor)
-        valid_dataset = DeloitteDataset(list(train_valid_data_list[valid_indices]), transform=transform, feature_extractor=feature_extractor)
+    train_indices = permutation[:int(train_ratio*len(train_valid_data_list))]
+    valid_indices = permutation[int(train_ratio*len(train_valid_data_list)):]
+    train_dataset = DeloitteDataset(list(train_valid_data_list[train_indices]), transform_img=transform_img, transform_mask=transform_mask, transform_both=transform_both, feature_extractor=feature_extractor)
+    valid_dataset = DeloitteDataset(list(train_valid_data_list[valid_indices]), transform_img=transform_img, transform_mask=transform_mask, transform_both=transform_both, feature_extractor=feature_extractor)
         
-
     return train_dataset, valid_dataset, test_dataset
