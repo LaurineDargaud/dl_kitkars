@@ -16,6 +16,8 @@ from src.models.performance_metrics import dice_score
 
 from src.visualization.visualization_fct import mask_to_rgb
 
+from src.models.post_processing_fct import post_processing
+
 import torch
 from torch.utils.data import DataLoader
 from torch import nn
@@ -150,7 +152,10 @@ def main(cfg):
         logger.info(f'creating wandb table for predictions visualization')
         
         # create a wandb.Table() with corresponding columns
-        columns=["id", "filename", "RGB image", "real mask", "prediction", "DICE score float", "DICE score"]
+        if cfg.post_processing:
+            columns=["id", "filename", "RGB image", "real mask", "prediction", "post_processing", "DICE score float", "DICE score"]
+        else:
+            columns=["id", "filename", "RGB image", "real mask", "prediction", "DICE score float", "DICE score"]
         test_table = wandb.Table(columns=columns)
         
         for i in tqdm(range((len(test_dataset)))):            
@@ -159,26 +164,44 @@ def main(cfg):
             rgb_image = rgb_image.type(torch.int).cpu().detach().numpy()
             rgb_image = np.transpose(rgb_image, (1, 2, 0))
             mask_img = mask_img.cpu().detach().numpy()[0]
-            mask_img = mask_to_rgb(mask_img)
             
             logit_prediction = all_predictions[i]
-            predicted_mask_img = mask_to_rgb(np.argmax(logit_prediction, axis=0))
+            predicted_mask_img = np.argmax(logit_prediction, axis=0)
+            
+            if cfg.post_processing:
+                processed_mask_img = post_processing(predicted_mask_img)
+                processed_mask_img = mask_to_rgb(processed_mask_img)
+            
+            mask_img = mask_to_rgb(mask_img)
+            predicted_mask_img = mask_to_rgb(predicted_mask_img)
             
             filename = test_dataset.data_list[i].name
-            test_table.add_data(
-                i, 
-                filename, 
-                wandb.Image(rgb_image), 
-                wandb.Image(mask_img), 
-                wandb.Image(predicted_mask_img),
-                all_dice_scores[i],
-                round(all_dice_scores[i]*100,3)
-            )
+            if cfg.post_processing:
+                test_table.add_data(
+                    i, 
+                    filename, 
+                    wandb.Image(rgb_image), 
+                    wandb.Image(mask_img), 
+                    wandb.Image(predicted_mask_img),
+                    wandb.Image(processed_mask_img),
+                    all_dice_scores[i],
+                    round(all_dice_scores[i]*100,3)
+                )
+            else:
+                test_table.add_data(
+                    i, 
+                    filename, 
+                    wandb.Image(rgb_image), 
+                    wandb.Image(mask_img), 
+                    wandb.Image(predicted_mask_img),
+                    all_dice_scores[i],
+                    round(all_dice_scores[i]*100,3)
+                )
         
         wandb.log({"test_table": test_table})
     
     # save predictions
-    if cfg.save_predictions_path != None:
+    if cfg.save_predictions_path != False:
         
         logger.info(f'save predictions locally')
         
