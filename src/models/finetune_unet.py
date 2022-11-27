@@ -62,19 +62,19 @@ def main(cfg):
     device = torch.device(f'cuda:{cuda}')
     
     # Define image transformations
-    transformations_img = transforms.Compose([
-        transforms.ToTensor(),
-        #ColorJitter(brightness=0.25, contrast=0.25, saturation=0.25, hue=0.1),
-        transforms.Normalize(0.0, 1.0)
-    ])
+    transformations_img = transforms.Compose(
+        [ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.1)]
+        )
     
     # Define transformations to apply to both img and mask
-    transformations_both = None #{
-     #   'crop_resize': {
-      #      'scale':(0.08, 1.0),
-       #     'ratio':(0.75, 1.3333333333333333)
-        #}
-    #}
+    transformations_both = {
+        'crop_resize': {
+            'scale':(0.25, 1.0),
+            'ratio':(1.0,1.0)
+        },
+        'random_hflip':{'p':0.5},
+        'random_perspective':{'distortion_scale': 0.5 }
+    }
     
     # Load Datasets
     logger.info('loading datasets')
