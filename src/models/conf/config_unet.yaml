@@ -1,13 +1,14 @@
 cuda: 0
 name: 'v13bis_augmented'
 
-log_wandb: True
+log_wandb: False
 
 reuse_finetune: 'v13bis'
 
 # For Predictions
-name_best: 'v13bis' 
+name_best: 'v9_data_augmented'
 predict_dataset: 'valid' #test or valid
+save_predictions_path: 'data/predictions' # None
 
 # # # # # # # # # #
 

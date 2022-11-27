@@ -219,6 +219,25 @@ def main(cfg):
         data = [[label, val] for (label, val) in zip(columns_dice_class, dice_class_average_list)]
         wandb.log({"Bar_chart": wandb.plot.bar(wandb.Table(data=data, columns = ["Classes", "Percentage"]) , "Classes", "Percentage", title= "Classes Bar Chart")})
     
+    # save predictions
+    if cfg.save_predictions_path != None:
+        
+        logger.info(f'save predictions locally')
+        
+        from os.path import isdir
+        from os import makedirs
+        
+        save_predictions_folder = cfg.save_predictions_path+f'/unet_finetuned_{name}_{dataset_to_predict}/'
+        
+        if not isdir(save_predictions_folder):
+            makedirs(save_predictions_folder)
+        
+        for i in tqdm(range((len(test_dataset)))):            
+            logit_prediction = all_predictions[i]
+            predicted_mask = np.argmax(logit_prediction, axis=0)
+            filename = test_dataset.data_list[i].name
+            np.save(save_predictions_folder+filename, predicted_mask)
+    
     logger.info('FINISHED predictions')
 
 if __name__ == '__main__':
