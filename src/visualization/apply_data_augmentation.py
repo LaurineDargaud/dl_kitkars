@@ -50,7 +50,7 @@ def main(cfg, max_render=100):
     # Define transformations to apply to both img and mask
     transformations_both = {
         'crop_resize': {
-            'scale':(0.3, 0.85),
+            'scale':(0.3, 0.9),
             'ratio':(1.0,1.0)
         },
         'random_hflip':{'p':0.5},

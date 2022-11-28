@@ -19,7 +19,7 @@ from src.visualization.visualization_fct import get_mask_names
 
 import torch
 from torch.utils.data import DataLoader
-from torch.optim.lr_scheduler import CosineAnnealingLR
+from torch.optim.lr_scheduler import StepLR #CosineAnnealingLR
 from torch import nn
 from torchvision import transforms
 import torch.optim as optim
@@ -121,7 +121,7 @@ def main(cfg):
         lr = cfg.hyperparameters.learning_rate, 
         weight_decay = cfg.hyperparameters.weight_decay
     )
-    scheduler = CosineAnnealingLR(optimizer, T_max=cfg.hyperparameters.T_max)
+    scheduler = StepLR(optimizer, step_size=25)
     
     # Training loop
     num_epochs = cfg.hyperparameters.num_epochs
