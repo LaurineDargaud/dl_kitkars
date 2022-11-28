@@ -74,6 +74,9 @@ def main(cfg):
         cfg.data_paths.test_set_filenames,
         train_ratio=0.8, 
         valid_ratio=0.2, 
+        data_real=cfg.data_augmentation.data_real,
+        synthetic_data_ratio=cfg.data_augmentation.synthetic_data_ratio,
+        train_valid_duplicate=cfg.data_augmentation.nb_train_valid_duplicate
     )
     
     batch_size=cfg.hyperparameters.batch_size

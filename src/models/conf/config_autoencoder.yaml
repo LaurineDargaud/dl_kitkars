@@ -1,7 +1,7 @@
 cuda: 0
 name: 'v1'
 
-log_wandb: False
+log_wandb: True
 
 # For Predictions
 name_best: 'v0'
@@ -16,13 +16,18 @@ model_paths:
 
 hyperparameters:
   batch_size: 24 # max 24 anything more cuda runs out of memory
-  num_workers: 24
-  learning_rate: 0.25
+  num_workers: 32
+  learning_rate: 1e-3
   weight_decay: 1E-3
   num_epochs: 100
-  validation_every_steps: 1 #100 #500
+  validation_every_steps: 100 #500
   T_max: 100
 
 autoencoder_parameters:
   nb_output_channels: 9
   nb_input_channels: 3
+
+data_augmentation:
+  data_real: True
+  nb_train_valid_duplicate: 1
+  synthetic_data_ratio: 0.1
