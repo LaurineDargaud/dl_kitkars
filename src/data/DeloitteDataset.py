@@ -60,6 +60,14 @@ class DeloitteDataset(Dataset):
         
         return output_rgb_img, output_mask
 
+    def get_rawImg(self, idx):
+        aNumpyFilePath = self.data_list[idx]
+        # load npy array
+        numpy_array = np.load(aNumpyFilePath)
+        rgb_img = (numpy_array[:3]*255)
+        rgb_img = torch.Tensor(rgb_img).type(torch.uint8)
+        return rgb_img
+
     def __getitem__(self, idx):
         aNumpyFilePath = self.data_list[idx]
         # load npy array
@@ -92,7 +100,7 @@ class DeloitteDataset(Dataset):
         # rgb_img = rgb_img.view((rgb_img.size(2), rgb_img.size(0), rgb_img.size(1)))
         
         # normalization
-        rgb_img = Normalize(0.0, 1.0).forward(rgb_img)
+        rgb_img = Normalize((127.5,127.5,127.5), (127.5,127.5,127.5) ).forward(rgb_img)
         
         # apply feature extraction if exists
         if self.feature_extractor != None:
