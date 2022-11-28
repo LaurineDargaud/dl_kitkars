@@ -100,7 +100,7 @@ class DeloitteDataset(Dataset):
         # rgb_img = rgb_img.view((rgb_img.size(2), rgb_img.size(0), rgb_img.size(1)))
         
         # normalization
-        rgb_img = Normalize(0.0, 1.0).forward(rgb_img)
+        rgb_img = Normalize((127.5,127.5,127.5), (127.5,127.5,127.5) ).forward(rgb_img)
         
         # apply feature extraction if exists
         if self.feature_extractor != None:
