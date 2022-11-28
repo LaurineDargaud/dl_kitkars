@@ -26,15 +26,15 @@ import torch.optim as optim
 
 import wandb
 
-def resize_logits(logits, size=(256,256)):
-    # logits shape (batch_size, num_labels, height/4, width/4)
-    upsampled_logits = nn.functional.interpolate(
-        logits,
-        size=size, # (height, width)
-        mode='bilinear',
-        align_corners=False
-    )
-    return upsampled_logits
+# def resize_logits(logits, size=(256,256)):
+#     # logits shape (batch_size, num_labels, height/4, width/4)
+#     upsampled_logits = nn.functional.interpolate(
+#         logits,
+#         size=size, # (height, width)
+#         mode='bilinear',
+#         align_corners=False
+#     )
+#     return upsampled_logits
 
 @click.command()
 @hydra.main(version_base=None, config_path='conf', config_name="config_autoencoder")
