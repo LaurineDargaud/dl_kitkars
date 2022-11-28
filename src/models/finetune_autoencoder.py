@@ -66,20 +66,12 @@ def main(cfg):
     # Set torch device
     device = torch.device(f'cuda:{cuda}')
     
-    # Define image transformations
-    transformations = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize(0.0, 1.0)
-        # ColorJitter(brightness=0.25, contrast=0.25, saturation=0.25, hue=0.1)  #try data augment later
-    ])
-    
     # Load Datasets for the AutoEncoder
     logger.info('loading datasets with feature extraction')
     
     train_dataset, valid_dataset, test_dataset = split_dataset(
         cfg.data_paths.clean_data, 
         cfg.data_paths.test_set_filenames,
-        transform=transformations,
         train_ratio=0.8, 
         valid_ratio=0.2, 
     )
@@ -107,16 +99,16 @@ def main(cfg):
     logger.info('load autoencoder model')
     id2label = get_mask_names()
     label2id = {v: k for k, v in id2label.items()}
-    model = AutoEncoder.from_pretrained(
-            n_channels = cfg.autoencoder_parameters.nb_in_channels,
-            n_classes = cfg.autoencoder_paarameters.nb_out_channels
+    model = AutoEncoder(
+            n_channels = cfg.autoencoder_parameters.nb_input_channels,
+            n_classes = cfg.autoencoder_parameters.nb_output_channels
     )
     model = model.to(device)
     
     # Test the forward pass with dummy data
     logger.info('testing with dummy data')
-    out = model(torch.randn(10, 3, 256, 256, device=device)).logits
-    out = resize_logits(out, size=(256, 256))
+    out = model(torch.randn(10, 3, 256, 256, device=device))['x_hat']
+    # out = resize_logits(out, size=(256, 256))
     assert out.size() == (10, cfg.autoencoder_parameters.nb_output_channels, 256, 256)
     
     # Set optimizer and schedulerd
@@ -154,8 +146,8 @@ def main(cfg):
             # Forward pass, compute gradients, perform one training step.
             optimizer.zero_grad()
             
-            output = model(rgb_img).logits
-            output = resize_logits(output, size=(mask_img.size(-2),mask_img.size(-1)))
+            output = model(rgb_img)['x_hat']
+            # output = resize_logits(output, size=(mask_img.size(-2),mask_img.size(-1)))
             
             # import pdb; pdb.set_trace()
             batch_loss = loss_fn(
@@ -193,8 +185,8 @@ def main(cfg):
                     model.eval()
                     for rgb_img, mask_img in valid_loader:
                         rgb_img, mask_img = rgb_img.to(device), mask_img.to(device)
-                        output = model(rgb_img).logits
-                        output = resize_logits(output, size=(mask_img.size(-2),mask_img.size(-1)))
+                        output = model(rgb_img)['x_hat']
+                        # output = resize_logits(output, size=(mask_img.size(-2),mask_img.size(-1)))
                         loss = loss_fn(
                             output.flatten(start_dim=2, end_dim=len(output.size())-1), 
                             mask_img.flatten(start_dim=1, end_dim=len(mask_img.size())-1).type(torch.long)
