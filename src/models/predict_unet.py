@@ -171,9 +171,12 @@ def main(cfg):
             "test_dice_score": test_dice_score,
             "test_loss": test_loss.cpu().detach().numpy() / len(test_dataset)
         }
-        
+
+        dice_class_average_list = []
+
         for i in range(len(dice_class_average)):
             s = dice_class_average[i]
+            dice_class_average_list.append(s)
             overview[f'DICE_{i}_{_MASK_NAMES_[i]}'] = s
 
         wandb.log(overview)
@@ -182,6 +185,7 @@ def main(cfg):
         
         # create a wandb.Table() with corresponding columns
         columns=["id", "filename", "RGB image", "real mask", "prediction", "DICE score float", "DICE score"] + [f"DICE_{i}_{j}" for i,j in _MASK_NAMES_.items()]
+
         test_table = wandb.Table(columns=columns)
         
         for i in tqdm(range((len(test_dataset)))):            
@@ -196,27 +200,23 @@ def main(cfg):
             
             filename = test_dataset.data_list[i].name
 
-            test_table.add_data(
+            test_columns = [
                 i, 
                 filename, 
                 wandb.Image(rgb_image), 
                 wandb.Image(mask_img), 
                 wandb.Image(predicted_mask_img),
                 all_dice_scores[i],
-                str(all_dice_class[i]),
-                np.round(all_dice_scores[i]*100,3)[0],
-                np.round(all_dice_scores[i]*100,3)[1],
-                np.round(all_dice_scores[i]*100,3)[2],
-                np.round(all_dice_scores[i]*100,3)[3],
-                np.round(all_dice_scores[i]*100,3)[4],
-                np.round(all_dice_scores[i]*100,3)[5],
-                np.round(all_dice_scores[i]*100,3)[6],
-                np.round(all_dice_scores[i]*100,3)[7],
-                np.round(all_dice_scores[i]*100,3)[8],
-                
-            )
+                str(all_dice_class[i])] + [np.round(j*100, 3) for j in all_dice_scores[i]]
+
+            test_table.add_data(*test_columns)
         
         wandb.log({"test_table": test_table})
+
+        columns_dice_class = [str(f"{i}_{j}") for i,j in _MASK_NAMES_.items()]
+
+        data = [[label, val] for (label, val) in zip(columns_dice_class, dice_class_average_list)]
+        wandb.log({"Bar_chart": wandb.plot.bar(wandb.Table(data=data, columns = ["Classes", "Percentage"]) , "Classes", "Percentage", title= "Classes Bar Chart")})
     
     logger.info('FINISHED predictions')
 

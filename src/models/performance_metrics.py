@@ -7,6 +7,6 @@ def dice_score(preds, target, average_method = 'macro'):
     return result
 
 
-def dice_score_class(preds, target, average_method = 'none', mdmc_average= 'samplewise'):
-    x = dice_score(preds = preds, target = target, average_method = average_method, mdmc_average= mdmc_average)
+def dice_score_class(preds, target, average_method = 'none'):
+    x = dice_score(preds = preds, target = target, average_method = average_method)
     return x
