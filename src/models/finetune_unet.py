@@ -63,13 +63,13 @@ def main(cfg):
     
     # Define image transformations
     transformations_img = transforms.Compose(
-        [ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.1)]
+        [ColorJitter(brightness=(0.7,1.3), contrast=(0.7,1.3), saturation=(0.7,1.3), hue=(0.0,0.5))]
         )
     
     # Define transformations to apply to both img and mask
     transformations_both = {
         'crop_resize': {
-            'scale':(0.25, 1.0),
+            'scale':(0.3, 0.85),
             'ratio':(1.0,1.0)
         },
         'random_hflip':{'p':0.5},
@@ -108,7 +108,7 @@ def main(cfg):
     )
     
     # Load model
-    if cfg.reuse_finetune == None:
+    if cfg.reuse_finetune == 'None':
         logger.info('load U-net pretrained model')
         model = UNet(n_channels=3, n_classes=2)
         model.load_state_dict(torch.load(cfg.model_paths.unet_scale_05))
