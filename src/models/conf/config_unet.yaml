@@ -1,5 +1,5 @@
 cuda: 0
-name: 'v11'
+name: 'v13bis'
 
 log_wandb: True
 
@@ -27,11 +27,12 @@ hyperparameters:
   num_epochs: 200 #100
   validation_every_steps: 100 #500
   T_max: 100
+  gamma: 2.0
 
 data_augmentation:
   data_real: True
   nb_train_valid_duplicate: 1
-  synthetic_data_ratio: 0.15
+  synthetic_data_ratio: 0.10
 
 image:
   height: 256

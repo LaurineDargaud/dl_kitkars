@@ -19,7 +19,7 @@ from src.models.performance_metrics import dice_score
 
 import torch
 from torch.utils.data import DataLoader
-from torch.optim.lr_scheduler import CosineAnnealingLR
+from torch.optim.lr_scheduler import CosineAnnealingLR, ExponentialLR
 from torch import nn
 from torchvision import transforms
 import torch.optim as optim
@@ -52,7 +52,8 @@ def main(cfg):
                 "finetuned_parameters": cfg.unet_parameters.to_finetune,
                 "data_real_processing": cfg.data_augmentation.data_real,
                 "ratio_synthetic_data": cfg.data_augmentation.synthetic_data_ratio,
-                "nb_duplicate": cfg.data_augmentation.nb_train_valid_duplicate
+                "nb_duplicate": cfg.data_augmentation.nb_train_valid_duplicate,
+                "gamma_exponential_scheduler": cfg.hyperparameters.gamma
             }
         )
     else:
@@ -133,7 +134,8 @@ def main(cfg):
         lr = cfg.hyperparameters.learning_rate, 
         weight_decay = cfg.hyperparameters.weight_decay
     )
-    scheduler = CosineAnnealingLR(optimizer, T_max=cfg.hyperparameters.T_max)
+    #scheduler = CosineAnnealingLR(optimizer, T_max=cfg.hyperparameters.T_max)
+    scheduler  = ExponentialLR(optimizer, gamma=cfg.hyperparameters.gamma)
     
     # Freeze some parameters
     logger.info('freezing wanted parameters')
