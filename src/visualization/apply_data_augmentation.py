@@ -42,7 +42,7 @@ def main(cfg, max_render=100):
     transformations_img = transforms.Compose([
         # transforms.ToTensor(),
         # AutoAugment(AutoAugmentPolicy.CIFAR10),
-        ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.1),
+        ColorJitter(brightness=(0.7,1.3), contrast=(0.7,1.3), saturation=(0.7,1.3), hue=(-0.5,0.5)),
         #ColorJitter(brightness=0.1),
         # transforms.Normalize(0.0, 1.0),
     ])
@@ -50,7 +50,7 @@ def main(cfg, max_render=100):
     # Define transformations to apply to both img and mask
     transformations_both = {
         'crop_resize': {
-            'scale':(0.25, 1.0),
+            'scale':(0.3, 0.85),
             'ratio':(1.0,1.0)
         },
         'random_hflip':{'p':0.5},
@@ -73,7 +73,7 @@ def main(cfg, max_render=100):
         'train':train_dataset, 'valid': valid_dataset, 'test': testing_dataset
     }
     
-    test_dataset = all_datasets['train']
+    test_dataset = all_datasets['test']
 
     # wandb log
     if log_wandb:
@@ -86,7 +86,7 @@ def main(cfg, max_render=100):
         logger.info(f'creating wandb table for visualization')
         
         # create a wandb.Table() with corresponding columns
-        columns=["filename", "RGB augmented image", "real mask"]
+        columns=["filename","Original", "RGB augmented image", "real mask"]
         test_table = wandb.Table(columns=columns)
         
         random_idx = list(range(len(test_dataset)))
@@ -94,16 +94,20 @@ def main(cfg, max_render=100):
         
         for i in tqdm(random_idx[:max_render]):            
             rgb_image, mask_img = test_dataset[i]
+            rawImg = test_dataset.get_rawImg(i)
             
             #rgb_image = rgb_image.type(torch.int).cpu().detach().numpy()
             rgb_image = rgb_image.cpu().detach().numpy()
             rgb_image = np.transpose(rgb_image, (1, 2, 0))
+            rawImg = rawImg.cpu().detach().numpy()
+            rawImg = np.transpose(rawImg, (1, 2, 0))
             mask_img = mask_img.cpu().detach().numpy()[0]
             mask_img = mask_to_rgb(mask_img)
             
             filename = test_dataset.data_list[i].name
             test_table.add_data(
                 filename, 
+                wandb.Image(rawImg),
                 wandb.Image(rgb_image), 
                 wandb.Image(mask_img)
             )
