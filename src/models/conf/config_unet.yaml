@@ -3,13 +3,19 @@ name: 'v13bis_augmented'
 
 log_wandb: False
 
-reuse_finetune: 'v13bis'
+reuse_finetune: 'v13bis' #'None'
 
 # For Predictions
 name_best: 'v9_data_augmented'
 predict_dataset: 'test' #test or valid
 post_processing: True
 save_predictions_path: False # 'data/predictions'
+
+predict_params:
+  apply_normalization: True
+  data_real: True
+  nb_train_valid_duplicate: 1
+  synthetic_data_ratio: 0.1
 
 # # # # # # # # # #
 
