@@ -1,12 +1,12 @@
 cuda: 0
-name: 'v13bis'
+name: 'v13bis_augmented'
 
 log_wandb: True
 
-reuse_finetune: 'None'
+reuse_finetune: 'v13bis'
 
 # For Predictions
-name_best: 'v11'
+name_best: 'v13bis' 
 predict_dataset: 'valid' #test or valid
 
 # # # # # # # # # #
@@ -27,7 +27,7 @@ hyperparameters:
   num_epochs: 200 #100
   validation_every_steps: 100 #500
   T_max: 100
-  gamma: 2.0
+  gamma: 0.93
 
 data_augmentation:
   data_real: True

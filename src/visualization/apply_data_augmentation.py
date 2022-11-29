@@ -73,7 +73,7 @@ def main(cfg, max_render=100):
         'train':train_dataset, 'valid': valid_dataset, 'test': testing_dataset
     }
     
-    test_dataset = all_datasets['valid']
+    test_dataset = all_datasets['test']
 
     # wandb log
     if log_wandb:
