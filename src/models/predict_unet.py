@@ -156,7 +156,7 @@ def main(cfg):
         for i in tqdm(range((len(test_dataset)))):            
             rgb_image, mask_img = test_dataset[i]
             
-            rgb_image = rgb_image.type(torch.int).cpu().detach().numpy()
+            rgb_image = rgb_image.cpu().detach().numpy()
             rgb_image = np.transpose(rgb_image, (1, 2, 0))
             mask_img = mask_img.cpu().detach().numpy()[0]
             mask_img = mask_to_rgb(mask_img)
