@@ -7,12 +7,17 @@ from dotenv import find_dotenv, load_dotenv
 import hydra
 from tqdm import tqdm
 import numpy as np
+import pandas as pd
 
 from src.data.DeloitteDataset import split_dataset
 
+from src.visualization.visualization_fct import _MASK_NAMES_
+
 from src.models.unet import UNet
 
-from src.models.performance_metrics import dice_score
+from torchvision import transforms
+
+from src.models.performance_metrics import dice_score, dice_score_class
 
 from src.visualization.visualization_fct import mask_to_rgb
 
@@ -102,6 +107,9 @@ def main(cfg):
     test_loss = 0
     all_predictions = []
     all_dice_scores = []
+
+    dice_class = []
+    all_dice_class = []
     
     logger.info(f'running {dataset_to_predict} predictions')
     
@@ -125,43 +133,67 @@ def main(cfg):
                     mask_img.flatten(start_dim=1, end_dim=len(mask_img.size())-1)
                 ) * len(rgb_img)
             )
-            
+
+            # classes x batches
+            dice_class.append(
+                    dice_score_class(
+                        predictions, 
+                        mask_img.flatten(start_dim=1, end_dim=len(mask_img.size())-1)
+                    )
+                )
+
             # Save output mask
             for i in range(len(output)):
                 all_predictions.append(output[i].cpu().detach().numpy())
-                all_dice_scores.append(
-                    float(dice_score(
+                #import pdb; pdb.set_trace()
+                #DICE PER CLASS PER IMAGE INSIDE BATCH
+                all_dice_scores.append(dice_score_class( # ADD FLOAT HERE IN CASE OF ANY ERROR
+                            output[i].flatten(start_dim=1, end_dim=len(output.size())-2).unsqueeze(0),
+                            mask_img[i].flatten(start_dim=0, end_dim=len(mask_img.size())-2).unsqueeze(0)
+                            )
+                        )
+
+                all_dice_class.append(dice_score( # DICE PER IMAGE INSIDE BATCH
                         output[i].flatten(start_dim=1, end_dim=len(output.size())-2).unsqueeze(0),
                         mask_img[i].flatten(start_dim=0, end_dim=len(mask_img.size())-2).unsqueeze(0)
-                    ))
+                    )
                 )
-    
+
     # Get performance metrics
     test_dice_score = np.sum(test_dice_scores_batches) / len(test_dataset)
+    dice_class_average = np.array(dice_class).mean(0)
     print(f"Test DICE score: {test_dice_score}")
     print(f"[Check] Avg Test DICE score: {np.mean(all_dice_scores)}")
-    
+    print(f"Average DICE score per class: {dice_class_average}")
+
     # wandb log
     if log_wandb:
         
-        wandb.log({
+        overview = {
             "test_dice_score": test_dice_score,
             "test_loss": test_loss.cpu().detach().numpy() / len(test_dataset)
-        })
+        }
+
+        dice_class_average_list = []
+
+        for i in range(len(dice_class_average)):
+            s = dice_class_average[i]
+            dice_class_average_list.append(s)
+            overview[f'DICE_{i}_{_MASK_NAMES_[i]}'] = s
+
+        wandb.log(overview)
         
         logger.info(f'creating wandb table for predictions visualization')
         
         # create a wandb.Table() with corresponding columns
-        if cfg.post_processing:
-            columns=["id", "filename", "RGB image", "real mask", "prediction", "post_processing", "DICE score float", "DICE score"]
-        else:
-            columns=["id", "filename", "RGB image", "real mask", "prediction", "DICE score float", "DICE score"]
+        columns=["id", "filename", "RGB image", "real mask", "prediction", "DICE score float", "DICE score"] + [f"DICE_{i}_{j}" for i,j in _MASK_NAMES_.items()]
+
         test_table = wandb.Table(columns=columns)
         
         for i in tqdm(range((len(test_dataset)))):            
             rgb_image, mask_img = test_dataset[i]
             
-            rgb_image = rgb_image.type(torch.int).cpu().detach().numpy()
+            rgb_image = rgb_image.cpu().detach().numpy()
             rgb_image = np.transpose(rgb_image, (1, 2, 0))
             mask_img = mask_img.cpu().detach().numpy()[0]
             
@@ -176,29 +208,24 @@ def main(cfg):
             predicted_mask_img = mask_to_rgb(predicted_mask_img)
             
             filename = test_dataset.data_list[i].name
-            if cfg.post_processing:
-                test_table.add_data(
-                    i, 
-                    filename, 
-                    wandb.Image(rgb_image), 
-                    wandb.Image(mask_img), 
-                    wandb.Image(predicted_mask_img),
-                    wandb.Image(processed_mask_img),
-                    all_dice_scores[i],
-                    round(all_dice_scores[i]*100,3)
-                )
-            else:
-                test_table.add_data(
-                    i, 
-                    filename, 
-                    wandb.Image(rgb_image), 
-                    wandb.Image(mask_img), 
-                    wandb.Image(predicted_mask_img),
-                    all_dice_scores[i],
-                    round(all_dice_scores[i]*100,3)
-                )
+
+            test_columns = [
+                i, 
+                filename, 
+                wandb.Image(rgb_image), 
+                wandb.Image(mask_img), 
+                wandb.Image(predicted_mask_img),
+                all_dice_scores[i],
+                str(all_dice_class[i])] + [np.round(j*100, 3) for j in all_dice_scores[i]]
+
+            test_table.add_data(*test_columns)
         
         wandb.log({"test_table": test_table})
+
+        columns_dice_class = [str(f"{i}_{j}") for i,j in _MASK_NAMES_.items()]
+
+        data = [[label, val] for (label, val) in zip(columns_dice_class, dice_class_average_list)]
+        wandb.log({"Bar_chart": wandb.plot.bar(wandb.Table(data=data, columns = ["Classes", "Percentage"]) , "Classes", "Percentage", title= "Classes Bar Chart")})
     
     # save predictions
     if cfg.save_predictions_path != False:
