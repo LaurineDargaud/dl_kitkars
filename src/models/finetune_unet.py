@@ -38,13 +38,13 @@ def main(cfg):
     
     # Define image transformations
     transformations_img = transforms.Compose(
-        [ColorJitter(brightness=(0.7,1.3), contrast=(0.7,1.3), saturation=(0.7,1.3), hue=(0.0,0.5))]
+        [ColorJitter(brightness=(0.7,1.3), contrast=(0.7,1.3), saturation=(0.7,1.3), hue=(-0.5,0.5))]
     )
     
     # Define transformations to apply to both img and mask
     transformations_both = {
         'crop_resize': {
-            'scale':(0.3, 0.85),
+            'scale':(0.3, 0.9),
             'ratio':(1.0,1.0)
         },
         'random_hflip':{'p':0.5},
