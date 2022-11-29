@@ -4,7 +4,8 @@ import logging
 from pathlib import Path
 from dotenv import find_dotenv, load_dotenv
 
-from torchvision.transforms import ColorJitter
+# from torchvision.transforms import ColorJitter
+from autoencoder import AutoEncoder
 
 import hydra
 from tqdm import tqdm
@@ -12,65 +13,51 @@ import numpy as np
 
 from src.data.DeloitteDataset import split_dataset
 
-from src.models.unet import UNet
-from src.models.unet import OutConv
-
 from src.models.performance_metrics import dice_score
+
+from src.visualization.visualization_fct import get_mask_names
 
 import torch
 from torch.utils.data import DataLoader
-from torch.optim.lr_scheduler import CosineAnnealingLR, ExponentialLR
+from torch.optim.lr_scheduler import StepLR, CosineAnnealingLR
 from torch import nn
 from torchvision import transforms
 import torch.optim as optim
 
 import wandb
 
+# def resize_logits(logits, size=(256,256)):
+#     # logits shape (batch_size, num_labels, height/4, width/4)
+#     upsampled_logits = nn.functional.interpolate(
+#         logits,
+#         size=size, # (height, width)
+#         mode='bilinear',
+#         align_corners=False
+#     )
+#     return upsampled_logits
+
 @click.command()
-@hydra.main(version_base=None, config_path='conf', config_name="config_unet")
+@hydra.main(version_base=None, config_path='conf', config_name="config_autoencoder")
 def main(cfg):
-    """ Fine tuning our U-Net pretrained model - baseline
+    """ Tuning an AutoEncoder model
     """
     logger = logging.getLogger(__name__)
-    logger.info('finetune UNet pretrained model')
+    logger.info('tune autoencoder model')
     
     cuda, name, log_wandb = cfg.cuda, cfg.name, cfg.log_wandb
     
-    # Define image transformations
-    transformations_img = transforms.Compose(
-        [ColorJitter(brightness=(0.7,1.3), contrast=(0.7,1.3), saturation=(0.7,1.3), hue=(-0.5,0.5))]
-    )
-    
-    # Define transformations to apply to both img and mask
-    transformations_both = {
-        'crop_resize': {
-            'scale':(0.3, 0.9),
-            'ratio':(1.0,1.0)
-        },
-        'random_hflip':{'p':0.5},
-        'random_perspective':{'distortion_scale': 0.5 }
-    }
-
     # WANDB LOG
     if log_wandb:
         logger.info('setting wandb logging system')
         wandb.init(
-            project="unet-finetuning", 
+            project="autoencoder-finetuning", 
             entity="kitkars", 
             name=name,
             config={
-                "pt_name":f'unet_finetuned_{name}.pt',
                 "learning_rate": cfg.hyperparameters.learning_rate,
                 "epochs": cfg.hyperparameters.num_epochs,
                 "batch_size": cfg.hyperparameters.batch_size,
                 "weight_decay": cfg.hyperparameters.weight_decay,
-                "finetuned_parameters": cfg.unet_parameters.to_finetune,
-                "data_real_processing": cfg.data_augmentation.data_real,
-                "ratio_synthetic_data": cfg.data_augmentation.synthetic_data_ratio,
-                "nb_duplicate": cfg.data_augmentation.nb_train_valid_duplicate,
-                "gamma_exponential_scheduler": cfg.hyperparameters.gamma,
-                "transformations_img": str(transformations_img),
-                "transformations_both": str(transformations_both)
             }
         )
     else:
@@ -79,13 +66,14 @@ def main(cfg):
     # Set torch device
     device = torch.device(f'cuda:{cuda}')
     
-    # Load Datasets
-    logger.info('loading datasets')
-    train_dataset, valid_dataset, _ = split_dataset(
+    # Load Datasets for the AutoEncoder
+    logger.info('loading datasets with feature extraction')
+    
+    train_dataset, valid_dataset, test_dataset = split_dataset(
         cfg.data_paths.clean_data, 
         cfg.data_paths.test_set_filenames,
-        transform_img=transformations_img,
-        transform_both=transformations_both,
+        train_ratio=0.8, 
+        valid_ratio=0.2, 
         data_real=cfg.data_augmentation.data_real,
         synthetic_data_ratio=cfg.data_augmentation.synthetic_data_ratio,
         train_valid_duplicate=cfg.data_augmentation.nb_train_valid_duplicate
@@ -111,43 +99,30 @@ def main(cfg):
     )
     
     # Load model
-    if cfg.reuse_finetune == 'None':
-        logger.info('load U-net pretrained model')
-        model = UNet(n_channels=3, n_classes=2)
-        model.load_state_dict(torch.load(cfg.model_paths.unet_scale_05))
-        # Replace final outc layer
-        model.outc = OutConv(64, cfg.unet_parameters.nb_output_channels)
-        model = model.to(device)
-    else:
-        logger.info(f'load U-net finetuned model: {cfg.reuse_finetune}')
-        model = UNet(n_channels=3, n_classes=cfg.unet_parameters.nb_output_channels)
-        model.load_state_dict(torch.load(cfg.model_paths.models+f'unet_finetuned_{cfg.reuse_finetune}.pt'))
-        model = model.to(device)
+    logger.info('load autoencoder model')
+    id2label = get_mask_names()
+    label2id = {v: k for k, v in id2label.items()}
+    model = AutoEncoder(
+            n_channels = cfg.autoencoder_parameters.nb_input_channels,
+            n_classes = cfg.autoencoder_parameters.nb_output_channels
+    )
+    model = model.to(device)
     
     # Test the forward pass with dummy data
     logger.info('testing with dummy data')
-    out = model(torch.randn(10, 3, 32, 32, device=device))
-    assert out.size() == (10, cfg.unet_parameters.nb_output_channels, 32, 32)
+    out = model(torch.randn(10, 3, 256, 256, device=device))['x_hat']
+    # out = resize_logits(out, size=(256, 256))
+    assert out.size() == (10, cfg.autoencoder_parameters.nb_output_channels, 256, 256)
     
-    # Set optimizer and scheduler
+    # Set optimizer and schedulerd
     loss_fn = nn.CrossEntropyLoss()
     optimizer = optim.Adam(
         model.parameters(), 
         lr = cfg.hyperparameters.learning_rate, 
         weight_decay = cfg.hyperparameters.weight_decay
     )
+    #scheduler = StepLR(optimizer, step_size=50)
     scheduler = CosineAnnealingLR(optimizer, T_max=cfg.hyperparameters.T_max)
-    #scheduler  = ExponentialLR(optimizer, gamma=cfg.hyperparameters.gamma)
-    
-    # Freeze some parameters
-    logger.info('freezing wanted parameters')
-    for aName, param in model.named_parameters():
-        name_keyword = aName.split('.')[0]
-        if (cfg.unet_parameters.to_finetune == 'all') or (name_keyword in cfg.unet_parameters.to_finetune):
-            print('To finetune:', aName)
-            param.required_grad = True
-        else:
-            param.required_grad = False
     
     # Training loop
     num_epochs = cfg.hyperparameters.num_epochs
@@ -175,8 +150,10 @@ def main(cfg):
             # Forward pass, compute gradients, perform one training step.
             optimizer.zero_grad()
             
-            output = model(rgb_img)
+            output = model(rgb_img)['x_hat']
+            # output = resize_logits(output, size=(mask_img.size(-2),mask_img.size(-1)))
             
+            # import pdb; pdb.set_trace()
             batch_loss = loss_fn(
                 output.flatten(start_dim=2, end_dim=len(output.size())-1), 
                 mask_img.flatten(start_dim=1, end_dim=len(mask_img.size())-1).type(torch.long)
@@ -212,7 +189,8 @@ def main(cfg):
                     model.eval()
                     for rgb_img, mask_img in valid_loader:
                         rgb_img, mask_img = rgb_img.to(device), mask_img.to(device)
-                        output = model(rgb_img)
+                        output = model(rgb_img)['x_hat']
+                        # output = resize_logits(output, size=(mask_img.size(-2),mask_img.size(-1)))
                         loss = loss_fn(
                             output.flatten(start_dim=2, end_dim=len(output.size())-1), 
                             mask_img.flatten(start_dim=1, end_dim=len(mask_img.size())-1).type(torch.long)
@@ -240,7 +218,7 @@ def main(cfg):
                 valid_dice_score.append(np.sum(valid_dice_scores_batches) / len(valid_dataset))
         
                 print(f"Step {step:<5}   training DICE score: {train_dice_scores[-1]}")
-                print(f"             valid DICE score: {valid_dice_score[-1]}")
+                print(f"             test DICE score: {valid_dice_score[-1]}")
                 
                 # wandb log
                 if log_wandb:
@@ -260,7 +238,7 @@ def main(cfg):
     
     # Save model
     model.load_state_dict(best_model)
-    torch.save(model.state_dict(), cfg.model_paths.models+f'unet_finetuned_{name}.pt')     
+    torch.save(model.state_dict(), cfg.model_paths.models+f'AutoEncoder_{name}.pt')     
     wandb.watch(model) #optional
 
 if __name__ == '__main__':
