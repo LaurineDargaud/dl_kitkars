@@ -6,7 +6,7 @@ from torchvision.transforms.functional import crop, resize, hflip, perspective
 from torchvision.transforms import RandomResizedCrop, RandomPerspective, Normalize
 
 class DeloitteDataset(Dataset):
-    def __init__(self, data_list, transform_img=None, transform_mask=None, transform_both=None, feature_extractor=None):
+    def __init__(self, data_list, transform_img=None, transform_mask=None, transform_both=None, feature_extractor=None, doNormalize=True):
         # set list of paths
         self.data_list = data_list
         # set rgb img transformation
@@ -21,6 +21,8 @@ class DeloitteDataset(Dataset):
             self.transform_mask = transform_mask
         # set feature extractor
         self.feature_extractor = feature_extractor
+        # set normalization bool
+        self.doNormalize = doNormalize
 
     def __len__(self):
         return len(self.data_list)
@@ -100,7 +102,8 @@ class DeloitteDataset(Dataset):
         # rgb_img = rgb_img.view((rgb_img.size(2), rgb_img.size(0), rgb_img.size(1)))
         
         # normalization
-        rgb_img = Normalize((127.5,127.5,127.5), (127.5,127.5,127.5) ).forward(rgb_img)
+        if self.doNormalize:
+            rgb_img = Normalize((127.5,127.5,127.5), (127.5,127.5,127.5) ).forward(rgb_img)
         
         # apply feature extraction if exists
         if self.feature_extractor != None:

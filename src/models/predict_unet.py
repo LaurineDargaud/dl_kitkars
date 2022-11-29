@@ -46,9 +46,21 @@ def main(cfg):
             name=f'{name} ({dataset_to_predict})',
             config={
                 "pt_name":f'unet_finetuned_{name}.pt',
-                "batch_size": cfg.hyperparameters.batch_size
+                "batch_size": cfg.hyperparameters.batch_size,
+                "set_type": dataset_to_predict
             }
         )
+        if cfg.predict_params.data_real:
+            wandb.config.update({
+                "data_real":cfg.predict_params.data_real,
+                "synthetic_data_ratio":cfg.predict_params.synthetic_data_ratio,
+                "train_valid_duplicate":cfg.predict_params.nb_train_valid_duplicate
+            })
+        else:
+            wandb.config.update({
+                "data_real":cfg.predict_params.data_real
+            })
+            
     else:
         logger.info('NO WANDB LOG')
     
@@ -57,6 +69,10 @@ def main(cfg):
     
     # Define image transformations
     transformations_img = None
+    # for V5 (valid): grayscale
+    # transformations_img = transforms.Compose(
+    #     [transforms.Grayscale(num_output_channels=3)]
+    # )
     
     # Define transformations to apply to both img and mask
     transformations_both = None
@@ -68,9 +84,9 @@ def main(cfg):
         cfg.data_paths.test_set_filenames,
         transform_img=transformations_img,
         transform_both=transformations_both,
-        data_real=cfg.data_augmentation.data_real,
-        synthetic_data_ratio=cfg.data_augmentation.synthetic_data_ratio,
-        train_valid_duplicate=cfg.data_augmentation.nb_train_valid_duplicate
+        data_real=cfg.predict_params.data_real,
+        synthetic_data_ratio=cfg.predict_params.synthetic_data_ratio,
+        train_valid_duplicate=cfg.predict_params.nb_train_valid_duplicate
     )
     
     all_datasets = {
@@ -78,6 +94,14 @@ def main(cfg):
     }
     
     test_dataset = all_datasets[dataset_to_predict]
+    
+    # apply normalization?
+    test_dataset.doNormalize = cfg.predict_params.apply_normalization
+    if log_wandb:
+        wandb.config.update({
+            "apply_normalization": cfg.predict_params.apply_normalization,
+            "size_set": len(test_dataset)
+        })
     
     batch_size=cfg.hyperparameters.batch_size
     
@@ -161,7 +185,6 @@ def main(cfg):
     test_dice_score = np.sum(test_dice_scores_batches) / len(test_dataset)
     dice_class_average = np.array(dice_class).mean(0)
     print(f"Test DICE score: {test_dice_score}")
-    print(f"[Check] Avg Test DICE score: {np.mean(all_dice_scores)}")
     print(f"Average DICE score per class: {dice_class_average}")
 
     # wandb log
