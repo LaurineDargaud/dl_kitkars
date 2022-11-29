@@ -32,7 +32,6 @@ def combine_processed_binary_masks(aMultiBinaryMask, confidence_per_class=[0, 1,
                 best_class = sorted(potential_classes, key=lambda x:np.argwhere(confidence_per_class==x)[0][0])[0]
                 pixel_value = best_class
             recombined_img[i,j]=pixel_value
-    
     return recombined_img
 
 def apply_morphology(aInitMask, aListOfOps):
@@ -42,7 +41,6 @@ def apply_morphology(aInitMask, aListOfOps):
         kernel = cv2.getStructuringElement(kernelType,(kernelSize,kernelSize))
         processed_mask = cv2.morphologyEx(processed_mask, morphType, kernel)
     return processed_mask
-
 
 def post_processing(aMask):
     predicted_mask = []

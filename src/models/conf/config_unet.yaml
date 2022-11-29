@@ -1,18 +1,18 @@
 cuda: 0
 name: 'v13bis_augmented'
 
-log_wandb: False
+log_wandb: True
 
-reuse_finetune: 'v13bis' #'None'
+reuse_finetune: 'None' #'v13bis' 
 
 # For Predictions
 name_best: 'v9_data_augmented'
-predict_dataset: 'test' #test or valid
+predict_dataset: 'valid' #test or valid
 post_processing: True
 save_predictions_path: False # 'data/predictions'
 
 predict_params:
-  apply_normalization: True
+  apply_normalization: False
   data_real: True
   nb_train_valid_duplicate: 1
   synthetic_data_ratio: 0.1

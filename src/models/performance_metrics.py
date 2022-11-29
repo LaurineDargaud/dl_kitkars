@@ -6,6 +6,11 @@ def dice_score(preds, target, average_method = 'macro'):
     result = result.cpu().detach().numpy()
     return result
 
+def dice_score_2Dmasks(preds, target):
+    #result = pt_dice_score(preds, target)
+    result = pt_dice_score(preds, target, ignore_index=0) # we consider background as non-class
+    result = result.cpu().detach().numpy()
+    return result
 
 def dice_score_class(preds, target, average_method = 'none'):
     x = dice_score(preds = preds, target = target, average_method = average_method)
