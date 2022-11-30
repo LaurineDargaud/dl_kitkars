@@ -179,6 +179,28 @@ def main(cfg):
     
     logger.info('FINISHED predictions')
 
+    
+    # from os.path import isdir
+    # from os import makedirs
+
+    # check_data_train = "data/raw/train_data_point"
+    # check_data_test = "data/raw/test_data_point"
+        
+    # if not isdir(check_data_train) and isdir(check_data_test):
+    #     makedirs(check_data_train) and makedirs(check_data_test)
+    
+    # for i in tqdm(range((len(train_dataset)))):            
+    #     logit_prediction = all_predictions[i]
+    #     predicted_datapoint = np.argmax(logit_prediction, axis=0)
+    #     filename = train_dataset.data_list[i].name
+    #     np.save(check_data_train+filename, predicted_datapoint)
+
+    # for i in tqdm(range((len(test_dataset)))):
+    #     log_pred = all_predictions[i]
+    #     pred_datapoint = np.argmax(log_pred, axis=0)
+    #     filenome = test_dataset.data_list[i].name
+    #     np.save(check_data_test+filenome, pred_datapoint)
+
 if __name__ == '__main__':
     log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     logging.basicConfig(level=logging.INFO, format=log_fmt)
