@@ -1,3 +1,6 @@
+import os
+from os.path import isdir
+from os import makedirs
 import torch
 from torch.utils.data import Dataset
 from torchvision.transforms import ToTensor
@@ -191,9 +194,16 @@ def split_dataset(
     else:
         train_valid_data_list = np.array(train_valid_data_list)
     permutation = np.random.permutation(len(train_valid_data_list))
+
     
     train_indices = permutation[:int(train_ratio*len(train_valid_data_list))]
     valid_indices = permutation[int(train_ratio*len(train_valid_data_list)):]
+
+    check_data_ = "data/raw/check_data_point/"
+    #makedirs(check_data_)
+    np.savetxt(os.path.join(check_data_, "train_indices.csv"), train_indices, delimiter=",")
+    np.savetxt(os.path.join(check_data_, "valid_indices.csv"), valid_indices, delimiter=",")
+
     train_dataset = DeloitteDataset(list(train_valid_data_list[train_indices]), transform_img=transform_img, transform_mask=transform_mask, transform_both=transform_both, feature_extractor=feature_extractor)
     valid_dataset = DeloitteDataset(list(train_valid_data_list[valid_indices]), transform_img=transform_img, transform_mask=transform_mask, transform_both=transform_both, feature_extractor=feature_extractor)
         

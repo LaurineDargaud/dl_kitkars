@@ -90,7 +90,7 @@ def main(cfg):
         synthetic_data_ratio=cfg.data_augmentation.synthetic_data_ratio,
         train_valid_duplicate=cfg.data_augmentation.nb_train_valid_duplicate
     )
-    
+
     batch_size=cfg.hyperparameters.batch_size
     
     # Get dataloaders
@@ -148,7 +148,7 @@ def main(cfg):
             param.required_grad = True
         else:
             param.required_grad = False
-    
+
     # Training loop
     num_epochs = cfg.hyperparameters.num_epochs
     validation_every_steps = cfg.hyperparameters.validation_every_steps
@@ -262,6 +262,7 @@ def main(cfg):
     model.load_state_dict(best_model)
     torch.save(model.state_dict(), cfg.model_paths.models+f'unet_finetuned_{name}.pt')     
     wandb.watch(model) #optional
+
 
 if __name__ == '__main__':
     log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'

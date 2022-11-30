@@ -1,12 +1,12 @@
 cuda: 0
-name: 'v13bis_augmented'
+name: 'check_1'
 
-log_wandb: True
+log_wandb: False
 
-reuse_finetune: 'v13bis'
+reuse_finetune: 'None'
 
 # For Predictions
-name_best: 'v13bis' 
+name_best: 'v12_data_augmented' 
 predict_dataset: 'valid' #test or valid
 
 # # # # # # # # # #
@@ -20,11 +20,11 @@ model_paths:
   unet_scale_05: 'models/unet_carvana_scale0.5_epoch2.pth'
 
 hyperparameters:
-  batch_size: 32
+  batch_size: 24
   num_workers: 32
   learning_rate: 1e-3
   weight_decay: 1E-3
-  num_epochs: 100 #100
+  num_epochs: 1 #00 #100
   validation_every_steps: 100 #500
   T_max: 100
   gamma: 0.93
