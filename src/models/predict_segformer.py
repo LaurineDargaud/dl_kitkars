@@ -29,6 +29,16 @@ from torch import nn
 
 import wandb
 
+def resize_logits(logits, size=(256,256)):
+    # logits shape (batch_size, num_labels, height/4, width/4)
+    upsampled_logits = nn.functional.interpolate(
+        logits,
+        size=size, # (height, width)
+        mode='bilinear',
+        align_corners=False
+    )
+    return upsampled_logits
+
 @click.command()
 @hydra.main(version_base=None, config_path='conf', config_name="config_segformer")
 def main(cfg):
@@ -39,6 +49,11 @@ def main(cfg):
     logger = logging.getLogger(__name__)
     logger.info(f'predict {dataset_to_predict} set with finetuned SegFormer model')
 
+ # Define image transformations
+    transformations_img = None
+
+    # Define transformations to apply to both img and mask
+    transformations_both = None
     
     # WANDB LOG
     if log_wandb:
@@ -49,20 +64,26 @@ def main(cfg):
             name=f'{name} ({dataset_to_predict})',
             config={
                 "pt_name":f'segformer_finetuned_{name}.pt',
-                "batch_size": cfg.hyperparameters.batch_size
+                "batch_size": cfg.hyperparameters.batch_size,
+           "set_type": dataset_to_predict
             }
         )
+        if cfg.predict_params.data_real:
+            wandb.config.update({
+                "data_real":cfg.predict_params.data_real,
+                "synthetic_data_ratio":cfg.predict_params.synthetic_data_ratio,
+                "train_valid_duplicate":cfg.predict_params.nb_train_valid_duplicate
+            })
+        else:
+            wandb.config.update({
+                "data_real":cfg.predict_params.data_real
+            })
+            
     else:
         logger.info('NO WANDB LOG')
     
     # Set torch device
     device = torch.device(f'cuda:{cuda}')
-    
-    # Define image transformations
-    transformations = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize(0.0, 1.0)
-    ])
     
     # Load Datasets
     feature_extractor = SegformerFeatureExtractor()
@@ -71,8 +92,13 @@ def main(cfg):
     train_dataset, valid_dataset, testing_dataset = split_dataset(
         cfg.data_paths.clean_data, 
         cfg.data_paths.test_set_filenames,
-        transform=transformations,
-        feature_extractor=feature_extractor
+        transform_img=transformations_img,
+        transform_both=transformations_both,
+        feature_extractor=feature_extractor,
+        train_ratio=1.0, valid_ratio=0.0,
+        data_real=cfg.data_augmentation.data_real,
+        synthetic_data_ratio=cfg.data_augmentation.synthetic_data_ratio,
+        train_valid_duplicate=cfg.data_augmentation.nb_train_valid_duplicate
     )
     
     all_datasets = {
@@ -80,19 +106,6 @@ def main(cfg):
     }
     
     test_dataset = all_datasets[dataset_to_predict]
-    
-    # Load real img dataset - without extractor, for visualisation
-    train_raw_dataset, valid_raw_dataset, testing_raw_dataset = split_dataset(
-        cfg.data_paths.clean_data, 
-        cfg.data_paths.test_set_filenames,
-        transform=transformations
-    )
-    
-    all_raw_datasets = {
-        'train':train_raw_dataset, 'valid': valid_raw_dataset, 'test': testing_raw_dataset
-    }
-    
-    test_raw_dataset = all_raw_datasets[dataset_to_predict]
     
     batch_size=cfg.hyperparameters.batch_size
     
@@ -182,8 +195,9 @@ def main(cfg):
         columns=["id", "filename", "RGB image", "features", "real mask", "prediction", "DICE score float", "DICE score"]
         test_table = wandb.Table(columns=columns)
         
-        for i in tqdm(range((len(test_raw_dataset)))):            
-            rgb_image, mask_img = test_raw_dataset[i]
+        for i in tqdm(range((len(test_dataset)))):            
+            _, mask_img = test_dataset[i]
+            rgb_image = test_dataset.get_rawImg(i)
             rgb_features, _ = test_dataset[i]
             
             rgb_image = rgb_image.type(torch.int).cpu().detach().numpy()

@@ -4,7 +4,7 @@ import logging
 from pathlib import Path
 from dotenv import find_dotenv, load_dotenv
 
-# from torchvision.transforms import ColorJitter
+from torchvision.transforms import ColorJitter
 from transformers import SegformerFeatureExtractor
 from transformers import SegformerForSemanticSegmentation
 
@@ -47,6 +47,23 @@ def main(cfg):
     
     cuda, name, log_wandb = cfg.cuda, cfg.name, cfg.log_wandb
     pretrained_model_name = cfg.segformer_parameters.pretrained_name
+
+    # Define image transformations
+    transformations_img = None
+    # transformations_img = transforms.Compose(
+    #     [ColorJitter(brightness=(0.7,1.3), contrast=(0.7,1.3), saturation=(0.7,1.3), hue=(-0.5,0.5))]
+    # )
+
+    # Define transformations to apply to both img and mask
+    transformations_both = None
+    # transformations_both = {
+    #     'crop_resize': {
+    #         'scale':(0.3, 0.9),
+    #         'ratio':(1.0,1.0)
+    #     },
+    #     'random_hflip':{'p':0.5},
+    #     'random_perspective':{'distortion_scale': 0.5 }
+    # }
     
     # WANDB LOG
     if log_wandb:
@@ -61,6 +78,13 @@ def main(cfg):
                 "epochs": cfg.hyperparameters.num_epochs,
                 "batch_size": cfg.hyperparameters.batch_size,
                 "weight_decay": cfg.hyperparameters.weight_decay,
+                #"finetuned_parameters": cfg.segformer_parameters.to_finetune,
+                "data_real_processing": cfg.data_augmentation.data_real,
+                "ratio_synthetic_data": cfg.data_augmentation.synthetic_data_ratio,
+                "nb_duplicate": cfg.data_augmentation.nb_train_valid_duplicate,
+                "gamma_exponential_scheduler": cfg.hyperparameters.gamma,
+                "transformations_img": str(transformations_img),
+                "transformations_both": str(transformations_both)
             }
         )
     else:
@@ -69,25 +93,22 @@ def main(cfg):
     # Set torch device
     device = torch.device(f'cuda:{cuda}')
     
-    # Define image transformations
-    transformations = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize(0.0, 1.0)
-        # ColorJitter(brightness=0.25, contrast=0.25, saturation=0.25, hue=0.1)  #try data augment later
-    ])
-    
     # Load Datasets with Segformer feature extractor
     logger.info('loading datasets with feature extraction')
     
     feature_extractor = SegformerFeatureExtractor()
     
-    train_dataset, _, valid_dataset = split_dataset(
+    train_dataset, valid_dataset, _ = split_dataset(
         cfg.data_paths.clean_data, 
         cfg.data_paths.test_set_filenames,
-        transform=transformations,
+        transform_img=transformations_img,
+        transform_both=transformations_both,
         feature_extractor=feature_extractor,
-        train_ratio=1.0, valid_ratio=0.0, 
+        data_real=cfg.data_augmentation.data_real,
+        synthetic_data_ratio=cfg.data_augmentation.synthetic_data_ratio,
+        train_valid_duplicate=cfg.data_augmentation.nb_train_valid_duplicate 
     )
+
     
     batch_size=cfg.hyperparameters.batch_size
     
@@ -163,7 +184,6 @@ def main(cfg):
             output = model(rgb_img).logits
             output = resize_logits(output, size=(mask_img.size(-2),mask_img.size(-1)))
             
-            # import pdb; pdb.set_trace()
             batch_loss = loss_fn(
                 output.flatten(start_dim=2, end_dim=len(output.size())-1), 
                 mask_img.flatten(start_dim=1, end_dim=len(mask_img.size())-1).type(torch.long)
