@@ -49,21 +49,21 @@ def main(cfg):
     pretrained_model_name = cfg.segformer_parameters.pretrained_name
 
     # Define image transformations
-    transformations_img = None
-    # transformations_img = transforms.Compose(
-    #     [ColorJitter(brightness=(0.7,1.3), contrast=(0.7,1.3), saturation=(0.7,1.3), hue=(-0.5,0.5))]
-    # )
+    # transformations_img = None
+    transformations_img = transforms.Compose(
+        [ColorJitter(brightness=(0.7,1.3), contrast=(0.7,1.3), saturation=(0.7,1.3), hue=(-0.5,0.5))]
+    )
 
     # Define transformations to apply to both img and mask
-    transformations_both = None
-    # transformations_both = {
-    #     'crop_resize': {
-    #         'scale':(0.3, 0.9),
-    #         'ratio':(1.0,1.0)
-    #     },
-    #     'random_hflip':{'p':0.5},
-    #     'random_perspective':{'distortion_scale': 0.5 }
-    # }
+    # transformations_both = None
+    transformations_both = {
+        'crop_resize': {
+            'scale':(0.3, 0.9),
+            'ratio':(1.0,1.0)
+        },
+        'random_hflip':{'p':0.5},
+        'random_perspective':{'distortion_scale': 0.5 }
+    }
     
     # WANDB LOG
     if log_wandb:

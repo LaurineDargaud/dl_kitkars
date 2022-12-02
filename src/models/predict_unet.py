@@ -7,7 +7,6 @@ from dotenv import find_dotenv, load_dotenv
 import hydra
 from tqdm import tqdm
 import numpy as np
-import pandas as pd
 
 from src.data.DeloitteDataset import split_dataset
 
@@ -15,7 +14,7 @@ from src.visualization.visualization_fct import _MASK_NAMES_
 
 from src.models.unet import UNet
 
-from torchvision import transforms
+# from torchvision import transforms
 
 from src.models.performance_metrics import dice_score, dice_score_class
 
@@ -167,7 +166,6 @@ def main(cfg):
             # Save output mask
             for i in range(len(output)):
                 all_predictions.append(output[i].cpu().detach().numpy())
-                #import pdb; pdb.set_trace()
                 #DICE PER CLASS PER IMAGE INSIDE BATCH
                 all_dice_scores.append(dice_score_class( # ADD FLOAT HERE IN CASE OF ANY ERROR
                             output[i].flatten(start_dim=1, end_dim=len(output.size())-2).unsqueeze(0),

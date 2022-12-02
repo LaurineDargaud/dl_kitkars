@@ -1,5 +1,5 @@
 cuda: 0
-name: 'v2'
+name: 'v3'
 
 log_wandb: True
 
@@ -30,7 +30,7 @@ hyperparameters:
   weight_decay: 1E-3
   num_epochs: 150
   validation_every_steps: 100 #500
-  T_max: 100
+  T_max: 150
   gamma: 0.96
 
 data_augmentation:
