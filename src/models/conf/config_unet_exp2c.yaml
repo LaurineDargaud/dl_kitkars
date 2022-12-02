@@ -1,21 +1,21 @@
-# EXP 0 - Init configuration
+# EXP 2 - Apply data augmentation: transformations
 
 cuda: 0
-name: 'exp0'
+name: 'exp2c'
 
 log_wandb: True
 
 reuse_finetune: 'None' 
 
 # For Predictions
-name_best: 'exp0' 
+name_best: 'exp2c' 
 predict_dataset: 'test' #test or valid
 
 predict_params:
   apply_normalization: True
-  data_real: False
+  data_real: True
   nb_train_valid_duplicate: 1
-  synthetic_data_ratio: 0.1
+  synthetic_data_ratio: 0.05
 
 # # # # # # # # # #
 
@@ -38,9 +38,9 @@ hyperparameters:
   gamma: 0.93
 
 data_augmentation:
-  data_real: False
+  data_real: True
   nb_train_valid_duplicate: 1
-  synthetic_data_ratio: 0.10
+  synthetic_data_ratio: 0.05
 
 image:
   height: 256

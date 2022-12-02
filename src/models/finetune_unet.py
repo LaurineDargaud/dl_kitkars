@@ -4,7 +4,7 @@ import logging
 from pathlib import Path
 from dotenv import find_dotenv, load_dotenv
 
-from torchvision.transforms import ColorJitter
+from torchvision.transforms import ColorJitter, Grayscale
 
 import hydra
 from tqdm import tqdm
@@ -27,7 +27,7 @@ import torch.optim as optim
 import wandb
 
 @click.command()
-@hydra.main(version_base=None, config_path='conf', config_name="config_unet_exp0")
+@hydra.main(version_base=None, config_path='conf', config_name="config_unet_exp2c")
 def main(cfg):
     """ Fine tuning our U-Net pretrained model - baseline
     """
@@ -40,18 +40,21 @@ def main(cfg):
     # transformations_img = transforms.Compose(
     #     [ColorJitter(brightness=(0.7,1.3), contrast=(0.7,1.3), saturation=(0.7,1.3), hue=(-0.5,0.5))]
     # )
+    # transformations_img = transforms.Compose(
+    #     [Grayscale(3)]
+    # )
     transformations_img=None
     
     # Define transformations to apply to both img and mask
-    # transformations_both = {
-    #     'crop_resize': {
-    #         'scale':(0.3, 0.9),
-    #         'ratio':(1.0,1.0)
-    #     },
-    #     'random_hflip':{'p':0.5},
-    #     'random_perspective':{'distortion_scale': 0.5 }
-    # }
-    transformations_both = None
+    transformations_both = {
+        'crop_resize': {
+            'scale':(0.3, 0.9),
+            'ratio':(1.0,1.0)
+        },
+        'random_hflip':{'p':0.5},
+        'random_perspective':{'distortion_scale': 0.5 }
+    }
+    # transformations_both = None
 
     # WANDB LOG
     if log_wandb:
