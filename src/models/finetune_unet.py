@@ -27,7 +27,7 @@ import torch.optim as optim
 import wandb
 
 @click.command()
-@hydra.main(version_base=None, config_path='conf', config_name="config_unet")
+@hydra.main(version_base=None, config_path='conf', config_name="config_unet_exp0")
 def main(cfg):
     """ Fine tuning our U-Net pretrained model - baseline
     """
@@ -37,19 +37,21 @@ def main(cfg):
     cuda, name, log_wandb = cfg.cuda, cfg.name, cfg.log_wandb
     
     # Define image transformations
-    transformations_img = transforms.Compose(
-        [ColorJitter(brightness=(0.7,1.3), contrast=(0.7,1.3), saturation=(0.7,1.3), hue=(-0.5,0.5))]
-    )
+    # transformations_img = transforms.Compose(
+    #     [ColorJitter(brightness=(0.7,1.3), contrast=(0.7,1.3), saturation=(0.7,1.3), hue=(-0.5,0.5))]
+    # )
+    transformations_img=None
     
     # Define transformations to apply to both img and mask
-    transformations_both = {
-        'crop_resize': {
-            'scale':(0.3, 0.9),
-            'ratio':(1.0,1.0)
-        },
-        'random_hflip':{'p':0.5},
-        'random_perspective':{'distortion_scale': 0.5 }
-    }
+    # transformations_both = {
+    #     'crop_resize': {
+    #         'scale':(0.3, 0.9),
+    #         'ratio':(1.0,1.0)
+    #     },
+    #     'random_hflip':{'p':0.5},
+    #     'random_perspective':{'distortion_scale': 0.5 }
+    # }
+    transformations_both = None
 
     # WANDB LOG
     if log_wandb:
@@ -91,6 +93,9 @@ def main(cfg):
         train_valid_duplicate=cfg.data_augmentation.nb_train_valid_duplicate
     )
     
+    print('Size of training set:', len(train_dataset))
+    print('Size of validation set:', len(valid_dataset))
+    
     batch_size=cfg.hyperparameters.batch_size
     
     # Get dataloaders
@@ -109,6 +114,7 @@ def main(cfg):
         shuffle=True,
         drop_last=False
     )
+
     
     # Load model
     if cfg.reuse_finetune == 'None':
