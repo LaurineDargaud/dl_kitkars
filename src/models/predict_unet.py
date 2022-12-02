@@ -7,7 +7,6 @@ from dotenv import find_dotenv, load_dotenv
 import hydra
 from tqdm import tqdm
 import numpy as np
-import pandas as pd
 
 from src.data.DeloitteDataset import split_dataset
 
@@ -15,7 +14,7 @@ from src.visualization.visualization_fct import _MASK_NAMES_
 
 from src.models.unet import UNet
 
-from torchvision import transforms
+# from torchvision import transforms
 
 from src.models.performance_metrics import dice_score, dice_score_class, dice_score_2Dmasks
 

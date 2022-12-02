@@ -1,11 +1,20 @@
 cuda: 0
-name: 'v1'
+name: 'v3'
 
 log_wandb: True
 
+reuse_finetune: 'None' #'v13bis' 
+
 # For Predictions
-name_best: 'v0'
-predict_dataset: 'valid'
+name_best: 'v2'
+predict_dataset: 'test'
+
+predict_params:
+  apply_normalization: True
+  data_real: True
+  nb_train_valid_duplicate: 1
+  synthetic_data_ratio: 0.1
+
 
 data_paths:
   clean_data: 'data/raw/carseg_data/clean_data'
@@ -16,12 +25,22 @@ model_paths:
 
 hyperparameters:
   batch_size: 32
-  num_workers: 24
+  num_workers: 32
   learning_rate: 1e-3
   weight_decay: 1E-3
-  num_epochs: 100
+  num_epochs: 150
   validation_every_steps: 100 #500
-  T_max: 100
+  T_max: 150
+  gamma: 0.96
+
+data_augmentation:
+  data_real: True
+  nb_train_valid_duplicate: 1
+  synthetic_data_ratio: 0.10
+
+image:
+  height: 256
+  width: 256
 
 segformer_parameters:
   nb_output_channels: 9
