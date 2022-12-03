@@ -35,7 +35,7 @@ hyperparameters:
   num_epochs: 50 #100
   validation_every_steps: 100 #500
   T_max: 100
-  gamma: 0.871
+  gamma: 0.87096358995
 
 data_augmentation:
   data_real: True

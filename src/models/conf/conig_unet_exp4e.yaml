@@ -1,14 +1,14 @@
-# EXP 6d - training on top of exp4e with 25 epochs and gamma = 0.5754 and starting learning rate = 1e-6
+# EXP 4 - changeing the weight decay: weight_decay = 1e-4
 
 cuda: 0
-name: 'exp6d'
+name: 'exp4e'
 
 log_wandb: True
 
-reuse_finetune: 'exp4e'
+reuse_finetune: 'None' 
 
 # For Predictions
-name_best: 'exp6d' 
+name_best: 'exp4e' 
 predict_dataset: 'test' #test or valid
 
 predict_params:
@@ -30,12 +30,12 @@ model_paths:
 hyperparameters:
   batch_size: 32
   num_workers: 32
-  learning_rate: 1e-6
+  learning_rate: 1e-3
   weight_decay: 1E-4
-  num_epochs: 25 #100
+  num_epochs: 200 #100
   validation_every_steps: 100 #500
   T_max: 100
-  gamma: 0.5754
+  gamma: 0.966
 
 data_augmentation:
   data_real: True
