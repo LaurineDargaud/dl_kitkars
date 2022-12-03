@@ -4,7 +4,7 @@ import logging
 from pathlib import Path
 from dotenv import find_dotenv, load_dotenv
 
-from torchvision.transforms import ColorJitter
+from torchvision.transforms import ColorJitter, Grayscale
 
 import hydra
 from tqdm import tqdm
@@ -27,7 +27,7 @@ import torch.optim as optim
 import wandb
 
 @click.command()
-@hydra.main(version_base=None, config_path='conf', config_name="config_unet")
+@hydra.main(version_base=None, config_path='conf', config_name="config_unet_exp2c")
 def main(cfg):
     """ Fine tuning our U-Net pretrained model - baseline
     """
@@ -37,9 +37,13 @@ def main(cfg):
     cuda, name, log_wandb = cfg.cuda, cfg.name, cfg.log_wandb
     
     # Define image transformations
-    transformations_img = transforms.Compose(
-        [ColorJitter(brightness=(0.7,1.3), contrast=(0.7,1.3), saturation=(0.7,1.3), hue=(-0.5,0.5))]
-    )
+    # transformations_img = transforms.Compose(
+    #     [ColorJitter(brightness=(0.7,1.3), contrast=(0.7,1.3), saturation=(0.7,1.3), hue=(-0.5,0.5))]
+    # )
+    # transformations_img = transforms.Compose(
+    #     [Grayscale(3)]
+    # )
+    # transformations_img=None
     
     # Define transformations to apply to both img and mask
     transformations_both = {
@@ -50,6 +54,7 @@ def main(cfg):
         'random_hflip':{'p':0.5},
         'random_perspective':{'distortion_scale': 0.5 }
     }
+    # transformations_both = None
 
     # WANDB LOG
     if log_wandb:
@@ -69,6 +74,7 @@ def main(cfg):
                 "ratio_synthetic_data": cfg.data_augmentation.synthetic_data_ratio,
                 "nb_duplicate": cfg.data_augmentation.nb_train_valid_duplicate,
                 "gamma_exponential_scheduler": cfg.hyperparameters.gamma,
+                "eta_min_cosine_scheduler": cfg.hyperparameters.eta_min,
                 "transformations_img": str(transformations_img),
                 "transformations_both": str(transformations_both)
             }
@@ -91,6 +97,9 @@ def main(cfg):
         train_valid_duplicate=cfg.data_augmentation.nb_train_valid_duplicate
     )
     
+    print('Size of training set:', len(train_dataset))
+    print('Size of validation set:', len(valid_dataset))
+    
     batch_size=cfg.hyperparameters.batch_size
     
     # Get dataloaders
@@ -109,6 +118,7 @@ def main(cfg):
         shuffle=True,
         drop_last=False
     )
+
     
     # Load model
     if cfg.reuse_finetune == 'None':

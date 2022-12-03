@@ -29,7 +29,7 @@ from torch import nn
 import wandb
 
 @click.command()
-@hydra.main(version_base=None, config_path='conf', config_name="config_unet")
+@hydra.main(version_base=None, config_path='conf', config_name="config_unet_exp2c")
 def main(cfg):
     """ Predict test set with finetuned U-Net model
     """
@@ -70,7 +70,8 @@ def main(cfg):
     
     # Define image transformations
     transformations_img = None
-    # for V5 (valid): grayscale
+    # for V5: grayscale
+    # from torchvision import transforms
     # transformations_img = transforms.Compose(
     #     [transforms.Grayscale(num_output_channels=3)]
     # )
