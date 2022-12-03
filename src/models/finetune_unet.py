@@ -27,7 +27,7 @@ import torch.optim as optim
 import wandb
 
 @click.command()
-@hydra.main(version_base=None, config_path='conf', config_name="config_unet_exp2c")
+@hydra.main(version_base=None, config_path='conf', config_name="config_unet_exp3e")
 def main(cfg):
     """ Fine tuning our U-Net pretrained model - baseline
     """
@@ -37,13 +37,13 @@ def main(cfg):
     cuda, name, log_wandb = cfg.cuda, cfg.name, cfg.log_wandb
     
     # Define image transformations
-    # transformations_img = transforms.Compose(
-    #     [ColorJitter(brightness=(0.7,1.3), contrast=(0.7,1.3), saturation=(0.7,1.3), hue=(-0.5,0.5))]
-    # )
+    transformations_img = transforms.Compose(
+        [ColorJitter(brightness=(0.7,1.3), contrast=(0.7,1.3), saturation=(0.7,1.3), hue=(-0.5,0.5))]
+    )
     # transformations_img = transforms.Compose(
     #     [Grayscale(3)]
     # )
-    transformations_img=None
+    # transformations_img=None
     
     # Define transformations to apply to both img and mask
     transformations_both = {
@@ -145,8 +145,8 @@ def main(cfg):
         lr = cfg.hyperparameters.learning_rate, 
         weight_decay = cfg.hyperparameters.weight_decay
     )
-    scheduler = CosineAnnealingLR(optimizer, T_max=cfg.hyperparameters.T_max)
-    #scheduler  = ExponentialLR(optimizer, gamma=cfg.hyperparameters.gamma)
+    # scheduler = CosineAnnealingLR(optimizer, T_max=cfg.hyperparameters.T_max)
+    scheduler  = ExponentialLR(optimizer, gamma=cfg.hyperparameters.gamma)
     
     # Freeze some parameters
     logger.info('freezing wanted parameters')
