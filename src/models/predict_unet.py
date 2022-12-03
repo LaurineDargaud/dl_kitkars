@@ -29,7 +29,7 @@ from torch import nn
 import wandb
 
 @click.command()
-@hydra.main(version_base=None, config_path='conf', config_name="config_unet_exp2c")
+@hydra.main(version_base=None, config_path='conf', config_name="config_unet_exp5")
 def main(cfg):
     """ Predict test set with finetuned U-Net model
     """
