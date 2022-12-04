@@ -8,6 +8,8 @@ import hydra
 from tqdm import tqdm
 import numpy as np
 
+from src.visualization.visualization_fct import _MASK_NAMES_
+
 from src.data.DeloitteDataset import split_dataset
 
 from src.visualization.visualization_fct import get_mask_names
@@ -15,9 +17,9 @@ from src.visualization.visualization_fct import get_mask_names
 from transformers import SegformerFeatureExtractor
 from transformers import SegformerForSemanticSegmentation
 
-from torchvision import transforms
+# from torchvision import transforms
 
-from src.models.performance_metrics import dice_score
+from src.models.performance_metrics import dice_score, dice_score_class
 
 from src.visualization.visualization_fct import mask_to_rgb
 
@@ -29,6 +31,16 @@ from torch import nn
 
 import wandb
 
+def resize_logits(logits, size=(256,256)):
+    # logits shape (batch_size, num_labels, height/4, width/4)
+    upsampled_logits = nn.functional.interpolate(
+        logits,
+        size=size, # (height, width)
+        mode='bilinear',
+        align_corners=False
+    )
+    return upsampled_logits
+
 @click.command()
 @hydra.main(version_base=None, config_path='conf', config_name="config_segformer")
 def main(cfg):
@@ -38,7 +50,6 @@ def main(cfg):
     
     logger = logging.getLogger(__name__)
     logger.info(f'predict {dataset_to_predict} set with finetuned SegFormer model')
-
     
     # WANDB LOG
     if log_wandb:
@@ -49,9 +60,21 @@ def main(cfg):
             name=f'{name} ({dataset_to_predict})',
             config={
                 "pt_name":f'segformer_finetuned_{name}.pt',
-                "batch_size": cfg.hyperparameters.batch_size
+                "batch_size": cfg.hyperparameters.batch_size,
+                "set_type": dataset_to_predict
             }
         )
+        if cfg.predict_params.data_real:
+            wandb.config.update({
+                "data_real":cfg.predict_params.data_real,
+                "synthetic_data_ratio":cfg.predict_params.synthetic_data_ratio,
+                "train_valid_duplicate":cfg.predict_params.nb_train_valid_duplicate
+            })
+        else:
+            wandb.config.update({
+                "data_real":cfg.predict_params.data_real
+            })
+            
     else:
         logger.info('NO WANDB LOG')
     
@@ -59,10 +82,10 @@ def main(cfg):
     device = torch.device(f'cuda:{cuda}')
     
     # Define image transformations
-    transformations = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize(0.0, 1.0)
-    ])
+    transformations_img = None
+
+    # Define transformations to apply to both img and mask
+    transformations_both = None
     
     # Load Datasets
     feature_extractor = SegformerFeatureExtractor()
@@ -71,8 +94,13 @@ def main(cfg):
     train_dataset, valid_dataset, testing_dataset = split_dataset(
         cfg.data_paths.clean_data, 
         cfg.data_paths.test_set_filenames,
-        transform=transformations,
-        feature_extractor=feature_extractor
+        transform_img=transformations_img,
+        transform_both=transformations_both,
+        feature_extractor=feature_extractor,
+        train_ratio=1.0, valid_ratio=0.0,
+        data_real=cfg.data_augmentation.data_real,
+        synthetic_data_ratio=cfg.data_augmentation.synthetic_data_ratio,
+        train_valid_duplicate=cfg.data_augmentation.nb_train_valid_duplicate
     )
     
     all_datasets = {
@@ -80,19 +108,6 @@ def main(cfg):
     }
     
     test_dataset = all_datasets[dataset_to_predict]
-    
-    # Load real img dataset - without extractor, for visualisation
-    train_raw_dataset, valid_raw_dataset, testing_raw_dataset = split_dataset(
-        cfg.data_paths.clean_data, 
-        cfg.data_paths.test_set_filenames,
-        transform=transformations
-    )
-    
-    all_raw_datasets = {
-        'train':train_raw_dataset, 'valid': valid_raw_dataset, 'test': testing_raw_dataset
-    }
-    
-    test_raw_dataset = all_raw_datasets[dataset_to_predict]
     
     batch_size=cfg.hyperparameters.batch_size
     
@@ -128,6 +143,9 @@ def main(cfg):
     all_predictions = []
     all_dice_scores = []
     
+    dice_class = []
+    all_dice_class = []
+    
     logger.info(f'running {dataset_to_predict} predictions')
     
     with torch.no_grad():
@@ -154,36 +172,64 @@ def main(cfg):
             )
             
             # Save output mask
+            # for i in range(len(output)):
+            #     all_predictions.append(output[i].cpu().detach().numpy())
+            #     all_dice_scores.append(
+            #         float(dice_score(
+            #             output[i].flatten(start_dim=1, end_dim=len(output.size())-2).unsqueeze(0),
+            #             mask_img[i].flatten(start_dim=0, end_dim=len(mask_img.size())-2).unsqueeze(0)
+            #         ))
+            #     )
+            
             for i in range(len(output)):
                 all_predictions.append(output[i].cpu().detach().numpy())
-                all_dice_scores.append(
-                    float(dice_score(
+                #DICE PER CLASS PER IMAGE INSIDE BATCH
+                all_dice_scores.append(dice_score_class( # ADD FLOAT HERE IN CASE OF ANY ERROR
+                            output[i].flatten(start_dim=1, end_dim=len(output.size())-2).unsqueeze(0),
+                            mask_img[i].flatten(start_dim=0, end_dim=len(mask_img.size())-2).unsqueeze(0)
+                            )
+                        )
+
+                all_dice_class.append(dice_score( # DICE PER IMAGE INSIDE BATCH
                         output[i].flatten(start_dim=1, end_dim=len(output.size())-2).unsqueeze(0),
                         mask_img[i].flatten(start_dim=0, end_dim=len(mask_img.size())-2).unsqueeze(0)
-                    ))
+                    )
                 )
     
     # Get performance metrics
     test_dice_score = np.sum(test_dice_scores_batches) / len(test_dataset)
+    dice_class_average = np.array(dice_class).mean(0)
     print(f"Test DICE score: {test_dice_score}")
-    print(f"[Check] Avg Test DICE score: {np.mean(all_dice_scores)}")
+    print(f"Average DICE score per class: {dice_class_average}")
+
     
     # wandb log
     if log_wandb:
         
-        wandb.log({
+        overview = {
             "test_dice_score": test_dice_score,
             "test_loss": test_loss.cpu().detach().numpy() / len(test_dataset)
-        })
+        }
+
+        dice_class_average_list = []
+
+        for i in range(len(dice_class_average)):
+            s = dice_class_average[i]
+            dice_class_average_list.append(s)
+            overview[f'DICE_{i}_{_MASK_NAMES_[i]}'] = s
+
+        wandb.log(overview)
         
         logger.info(f'creating wandb table for predictions visualization')
         
         # create a wandb.Table() with corresponding columns
-        columns=["id", "filename", "RGB image", "features", "real mask", "prediction", "DICE score float", "DICE score"]
+        columns=["id", "filename", "RGB image", "features", "real mask", "prediction", "DICE score float", "DICE score"] + [f"DICE_{i}_{j}" for i,j in _MASK_NAMES_.items()]
+
         test_table = wandb.Table(columns=columns)
         
-        for i in tqdm(range((len(test_raw_dataset)))):            
-            rgb_image, mask_img = test_raw_dataset[i]
+        for i in tqdm(range((len(test_dataset)))):            
+            _, mask_img = test_dataset[i]
+            rgb_image = test_dataset.get_rawImg(i)
             rgb_features, _ = test_dataset[i]
             
             rgb_image = rgb_image.type(torch.int).cpu().detach().numpy()
@@ -197,7 +243,7 @@ def main(cfg):
             predicted_mask_img = mask_to_rgb(np.argmax(logit_prediction, axis=0))
             
             filename = test_dataset.data_list[i].name
-            test_table.add_data(
+            test_columns = [
                 i, 
                 filename, 
                 wandb.Image(rgb_image), 
@@ -205,10 +251,17 @@ def main(cfg):
                 wandb.Image(mask_img), 
                 wandb.Image(predicted_mask_img),
                 all_dice_scores[i],
-                round(all_dice_scores[i]*100,3)
-            )
+                str(all_dice_class[i])] + [np.round(j*100, 3) for j in all_dice_scores[i]]
+
+            test_table.add_data(*test_columns)
         
         wandb.log({"test_table": test_table})
+
+        columns_dice_class = [str(f"{i}_{j}") for i,j in _MASK_NAMES_.items()]
+
+        data = [[label, val] for (label, val) in zip(columns_dice_class, dice_class_average_list)]
+        wandb.log({"Bar_chart": wandb.plot.bar(wandb.Table(data=data, columns = ["Classes", "Percentage"]) , "Classes", "Percentage", title= "Classes Bar Chart")})
+    
     
     logger.info('FINISHED predictions')
 

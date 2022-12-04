@@ -35,6 +35,21 @@ def main(cfg):
     logger.info('finetune UNet pretrained model')
     
     cuda, name, log_wandb = cfg.cuda, cfg.name, cfg.log_wandb
+    
+    # Define image transformations
+    transformations_img = transforms.Compose(
+        [ColorJitter(brightness=(0.7,1.3), contrast=(0.7,1.3), saturation=(0.7,1.3), hue=(-0.5,0.5))]
+    )
+    
+    # Define transformations to apply to both img and mask
+    transformations_both = {
+        'crop_resize': {
+            'scale':(0.3, 0.9),
+            'ratio':(1.0,1.0)
+        },
+        'random_hflip':{'p':0.5},
+        'random_perspective':{'distortion_scale': 0.5 }
+    }
 
     # WANDB LOG
     if log_wandb:
@@ -53,7 +68,9 @@ def main(cfg):
                 "data_real_processing": cfg.data_augmentation.data_real,
                 "ratio_synthetic_data": cfg.data_augmentation.synthetic_data_ratio,
                 "nb_duplicate": cfg.data_augmentation.nb_train_valid_duplicate,
-                "gamma_exponential_scheduler": cfg.hyperparameters.gamma
+                "gamma_exponential_scheduler": cfg.hyperparameters.gamma,
+                "transformations_img": str(transformations_img),
+                "transformations_both": str(transformations_both)
             }
         )
     else:
@@ -61,21 +78,6 @@ def main(cfg):
     
     # Set torch device
     device = torch.device(f'cuda:{cuda}')
-    
-    # Define image transformations
-    transformations_img = transforms.Compose(
-        [ColorJitter(brightness=(0.7,1.3), contrast=(0.7,1.3), saturation=(0.7,1.3), hue=(0.0,0.5))]
-        )
-    
-    # Define transformations to apply to both img and mask
-    transformations_both = {
-        'crop_resize': {
-            'scale':(0.3, 0.85),
-            'ratio':(1.0,1.0)
-        },
-        'random_hflip':{'p':0.5},
-        'random_perspective':{'distortion_scale': 0.5 }
-    }
     
     # Load Datasets
     logger.info('loading datasets')
@@ -117,7 +119,7 @@ def main(cfg):
         model.outc = OutConv(64, cfg.unet_parameters.nb_output_channels)
         model = model.to(device)
     else:
-        logger.info('load U-net pretrained model')
+        logger.info(f'load U-net finetuned model: {cfg.reuse_finetune}')
         model = UNet(n_channels=3, n_classes=cfg.unet_parameters.nb_output_channels)
         model.load_state_dict(torch.load(cfg.model_paths.models+f'unet_finetuned_{cfg.reuse_finetune}.pt'))
         model = model.to(device)
@@ -134,8 +136,8 @@ def main(cfg):
         lr = cfg.hyperparameters.learning_rate, 
         weight_decay = cfg.hyperparameters.weight_decay
     )
-    #scheduler = CosineAnnealingLR(optimizer, T_max=cfg.hyperparameters.T_max)
-    scheduler  = ExponentialLR(optimizer, gamma=cfg.hyperparameters.gamma)
+    scheduler = CosineAnnealingLR(optimizer, T_max=cfg.hyperparameters.T_max)
+    #scheduler  = ExponentialLR(optimizer, gamma=cfg.hyperparameters.gamma)
     
     # Freeze some parameters
     logger.info('freezing wanted parameters')
