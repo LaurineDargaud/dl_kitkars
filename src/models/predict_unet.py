@@ -13,9 +13,7 @@ from src.data.DeloitteDataset import split_dataset
 from src.visualization.visualization_fct import _MASK_NAMES_
 
 from src.models.unet import UNet
-
-# from torchvision import transforms
-
+from torchvision import transforms
 from src.models.performance_metrics import dice_score, dice_score_class
 
 from src.visualization.visualization_fct import mask_to_rgb
@@ -27,7 +25,7 @@ from torch import nn
 import wandb
 
 @click.command()
-@hydra.main(version_base=None, config_path='conf', config_name="config_unet")
+@hydra.main(version_base=None, config_path='conf', config_name="config_unet_exp9")
 def main(cfg):
     """ Predict test set with finetuned U-Net model
     """
@@ -68,7 +66,8 @@ def main(cfg):
     
     # Define image transformations
     transformations_img = None
-    # for V5 (valid): grayscale
+    # for V5: grayscale
+    # from torchvision import transforms
     # transformations_img = transforms.Compose(
     #     [transforms.Grayscale(num_output_channels=3)]
     # )
