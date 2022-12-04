@@ -66,10 +66,14 @@ def main(cfg):
     # Load Datasets
     
     logger.info(f'loading {dataset_to_predict} set')
-    train_dataset, valid_dataset, testing_dataset = split_dataset(
+    train_dataset, valid_dataset, testing_dataset =  split_dataset(
         cfg.data_paths.clean_data, 
         cfg.data_paths.test_set_filenames,
-        transform_img=transformations
+        transform_img=transformations_img,
+        transform_both=transformations_both,
+        data_real=cfg.data_augmentation.data_real,
+        synthetic_data_ratio=cfg.data_augmentation.synthetic_data_ratio,
+        train_valid_duplicate=cfg.data_augmentation.nb_train_valid_duplicate
     )
     
     all_datasets = {
@@ -79,10 +83,14 @@ def main(cfg):
     test_dataset = all_datasets[dataset_to_predict]
     
     # Load real img dataset - without extractor, for visualisation
-    train_raw_dataset, valid_raw_dataset, testing_raw_dataset = split_dataset(
+    train_raw_dataset, valid_raw_dataset, testing_raw_dataset =  split_dataset(
         cfg.data_paths.clean_data, 
         cfg.data_paths.test_set_filenames,
-        transform_img=transformations
+        transform_img=transformations_img,
+        transform_both=transformations_both,
+        data_real=cfg.data_augmentation.data_real,
+        synthetic_data_ratio=cfg.data_augmentation.synthetic_data_ratio,
+        train_valid_duplicate=cfg.data_augmentation.nb_train_valid_duplicate
     )
     
     all_raw_datasets = {
