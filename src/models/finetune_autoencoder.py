@@ -58,6 +58,7 @@ def main(cfg):
                 "epochs": cfg.hyperparameters.num_epochs,
                 "batch_size": cfg.hyperparameters.batch_size,
                 "weight_decay": cfg.hyperparameters.weight_decay,
+                "gamma_Exp_scheduelr": cfg.hyperparameters.gamma,
             }
         )
     else:
@@ -72,8 +73,8 @@ def main(cfg):
     train_dataset, valid_dataset, test_dataset = split_dataset(
         cfg.data_paths.clean_data, 
         cfg.data_paths.test_set_filenames,
-        train_ratio=0.85, 
-        valid_ratio=0.15, 
+        transform_img=transformations_img,
+        transform_both=transformations_both,
         data_real=cfg.data_augmentation.data_real,
         synthetic_data_ratio=cfg.data_augmentation.synthetic_data_ratio,
         train_valid_duplicate=cfg.data_augmentation.nb_train_valid_duplicate
@@ -125,7 +126,8 @@ def main(cfg):
         weight_decay = cfg.hyperparameters.weight_decay
     )
     #scheduler = StepLR(optimizer, step_size=50)
-    scheduler = CosineAnnealingLR(optimizer, T_max=cfg.hyperparameters.T_max)
+    #scheduler = CosineAnnealingLR(optimizer, T_max=cfg.hyperparameters.T_max)
+    scheduler = Exponetial(optimizer, T_max=cfg.hyperparameters.T_max)
     
     # Training loop
     num_epochs = cfg.hyperparameters.num_epochs

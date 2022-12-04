@@ -1,0 +1,37 @@
+#baseline 
+cuda: 0
+name: 'B_v4e'
+
+log_wandb: True
+
+# For Predictions
+name_best: 'B_v4e'
+predict_dataset: 'test'
+
+data_paths:
+  clean_data: 'data/raw/carseg_data/clean_data'
+  test_set_filenames: 'references/test_set_ids.txt'
+
+model_paths:
+  models: 'models/'
+
+hyperparameters:
+  batch_size: 16 # max 24 anything more cuda runs out of memory
+  num_workers: 32
+  learning_rate: 1e-3
+  weight_decay: 1E-4
+  num_epochs: 200
+  validation_every_steps: 100 #500
+  T_max: 100
+  gamma: 0.996
+
+autoencoder_parameters:
+  nb_output_channels: 9
+  nb_input_channels: 3
+
+data_augmentation:
+  data_real: True
+  nb_train_valid_duplicate: 1
+  synthetic_data_ratio: 0.05
+
+
