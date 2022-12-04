@@ -1,0 +1,51 @@
+# EXP FINAL - exp4e parameters, but a lot more epochs = 1,000 (with intermediate saves)
+
+cuda: 0
+name: 'expFinal'
+
+log_wandb: True
+
+reuse_finetune: 'None' 
+
+# For Predictions
+name_best: 'expFinal' 
+predict_dataset: 'test' #test or valid
+
+predict_params:
+  apply_normalization: True
+  data_real: True
+  nb_train_valid_duplicate: 1
+  synthetic_data_ratio: 0.05
+
+# # # # # # # # # #
+
+data_paths:
+  clean_data: 'data/raw/carseg_data/clean_data'
+  test_set_filenames: 'references/test_set_ids.txt'
+
+model_paths:
+  models: 'models/'
+  unet_scale_05: 'models/unet_carvana_scale0.5_epoch2.pth'
+
+hyperparameters:
+  batch_size: 32
+  num_workers: 32
+  learning_rate: 1e-3
+  weight_decay: 1E-4
+  num_epochs: 1000 #100
+  validation_every_steps: 100 #500
+  T_max: 100
+  gamma: 0.966
+
+data_augmentation:
+  data_real: True
+  nb_train_valid_duplicate: 1
+  synthetic_data_ratio: 0.05
+
+image:
+  height: 256
+  width: 256
+
+unet_parameters:
+  nb_output_channels: 9
+  to_finetune: 'all'  #['outc']
