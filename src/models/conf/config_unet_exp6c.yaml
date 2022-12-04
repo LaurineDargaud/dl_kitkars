@@ -1,4 +1,4 @@
-# EXP 6b - training on top of exp4e with 5 epochs and gamma = 0.251
+# EXP 6c - training on top of exp4e with 5 epochs and gamma = 0.2512
 
 cuda: 0
 name: 'exp6c'
@@ -35,7 +35,7 @@ hyperparameters:
   num_epochs: 5 #100
   validation_every_steps: 100 #500
   T_max: 100
-  gamma: 0.251
+  gamma: 0.2512
 
 data_augmentation:
   data_real: True
