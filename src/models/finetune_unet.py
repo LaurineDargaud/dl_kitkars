@@ -27,7 +27,7 @@ import torch.optim as optim
 import wandb
 
 @click.command()
-@hydra.main(version_base=None, config_path='conf', config_name="config_unet_exp6b")
+@hydra.main(version_base=None, config_path='conf', config_name="config_unet_exp8b")
 def main(cfg):
     """ Fine tuning our U-Net pretrained model - baseline
     """
@@ -37,23 +37,23 @@ def main(cfg):
     cuda, name, log_wandb = cfg.cuda, cfg.name, cfg.log_wandb
     
     # Define image transformations
-    transformations_img = None #transforms.Compose(
-    #     [ColorJitter(brightness=(0.7,1.3), contrast=(0.7,1.3), saturation=(0.7,1.3), hue=(-0.5,0.5))]
-    # )
+    transformations_img = transforms.Compose(
+        [ColorJitter(brightness=(0.7,1.3), contrast=(0.7,1.3), saturation=(0.7,1.3), hue=(-0.5,0.5))]
+    )
     # transformations_img = transforms.Compose(
     #     [Grayscale(3)]
     # )
     # transformations_img=None
     
     # Define transformations to apply to both img and mask
-    transformations_both = None#{
-    #     'crop_resize': {
-    #         'scale':(0.3, 0.9),
-    #         'ratio':(1.0,1.0)
-    #     },
-    #     'random_hflip':{'p':0.5},
-    #     'random_perspective':{'distortion_scale': 0.5 }
-    # }
+    transformations_both = {
+        'crop_resize': {
+            'scale':(0.3, 0.9),
+            'ratio':(1.0,1.0)
+        },
+        'random_hflip':{'p':0.5},
+        'random_perspective':{'distortion_scale': 0.5 }
+    }
     # transformations_both = None
 
     # WANDB LOG
