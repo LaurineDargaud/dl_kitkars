@@ -20,7 +20,7 @@ from src.models.performance_metrics import dice_score
 
 from src.visualization.visualization_fct import mask_to_rgb
 
-from src.models.finetune_autoencoder import resize_logits
+#from src.models.finetune_autoencoder import resize_logits
 
 import torch
 from torch.utils.data import DataLoader
@@ -69,7 +69,7 @@ def main(cfg):
     train_dataset, valid_dataset, testing_dataset = split_dataset(
         cfg.data_paths.clean_data, 
         cfg.data_paths.test_set_filenames,
-        transform=transformations
+        transform_img=transformations
     )
     
     all_datasets = {
@@ -82,7 +82,7 @@ def main(cfg):
     train_raw_dataset, valid_raw_dataset, testing_raw_dataset = split_dataset(
         cfg.data_paths.clean_data, 
         cfg.data_paths.test_set_filenames,
-        transform=transformations
+        transform_img=transformations
     )
     
     all_raw_datasets = {
@@ -109,7 +109,7 @@ def main(cfg):
             n_channels = cfg.autoencoder_parameters.nb_input_channels,
             n_classes = cfg.autoencoder_parameters.nb_output_channels
     )
-    model.load_state_dict(torch.load(cfg.model_paths.models+f'Autoencoder_{name}.pt'))
+    model.load_state_dict(torch.load(cfg.model_paths.models+f'AutoEncoder_{name}.pt'))
     model = model.to(device)
     
     # Set loss function

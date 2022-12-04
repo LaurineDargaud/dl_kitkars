@@ -72,13 +72,16 @@ def main(cfg):
     train_dataset, valid_dataset, test_dataset = split_dataset(
         cfg.data_paths.clean_data, 
         cfg.data_paths.test_set_filenames,
-        train_ratio=0.8, 
-        valid_ratio=0.2, 
+        train_ratio=0.85, 
+        valid_ratio=0.15, 
         data_real=cfg.data_augmentation.data_real,
         synthetic_data_ratio=cfg.data_augmentation.synthetic_data_ratio,
         train_valid_duplicate=cfg.data_augmentation.nb_train_valid_duplicate
     )
     
+    print('Size of training set:', len(train_dataset))
+    print('Size of validation set:', len(valid_dataset))
+
     batch_size=cfg.hyperparameters.batch_size
     
     # Get dataloaders
