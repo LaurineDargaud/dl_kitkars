@@ -13,13 +13,15 @@ import numpy as np
 
 from src.data.DeloitteDataset import split_dataset
 
+from torchvision.transforms import ColorJitter, Grayscale
+
 from src.models.performance_metrics import dice_score
 
 from src.visualization.visualization_fct import get_mask_names
 
 import torch
 from torch.utils.data import DataLoader
-from torch.optim.lr_scheduler import StepLR, CosineAnnealingLR
+from torch.optim.lr_scheduler import ExponentialLR, StepLR, CosineAnnealingLR
 from torch import nn
 from torchvision import transforms
 import torch.optim as optim
@@ -37,7 +39,7 @@ import wandb
 #     return upsampled_logits
 
 @click.command()
-@hydra.main(version_base=None, config_path='conf', config_name="config_autoencoder")
+@hydra.main(version_base=None, config_path='conf', config_name="config_autoencoder2")
 def main(cfg):
     """ Tuning an AutoEncoder model
     """
@@ -46,6 +48,22 @@ def main(cfg):
     
     cuda, name, log_wandb = cfg.cuda, cfg.name, cfg.log_wandb
     
+     # Define image transformations
+    transformations_img = transforms.Compose(
+        [ColorJitter(brightness=(0.7,1.3), contrast=(0.7,1.3), saturation=(0.7,1.3), hue=(-0.5,0.5))]
+    )
+    #transformations_img = None
+
+    # Define transformations to apply to both img and mask
+    transformations_both = {
+        'crop_resize': {
+            'scale':(0.3, 0.9),
+            'ratio':(1.0,1.0)
+        },
+        'random_hflip':{'p':0.5},
+        'random_perspective':{'distortion_scale': 0.5 }
+    }
+
     # WANDB LOG
     if log_wandb:
         logger.info('setting wandb logging system')
@@ -58,7 +76,13 @@ def main(cfg):
                 "epochs": cfg.hyperparameters.num_epochs,
                 "batch_size": cfg.hyperparameters.batch_size,
                 "weight_decay": cfg.hyperparameters.weight_decay,
+                #"finetuned_parameters": cfg.unet_parameters.to_finetune,
+                "data_real_processing": cfg.data_augmentation.data_real,
+                "ratio_synthetic_data": cfg.data_augmentation.synthetic_data_ratio,
+                "nb_duplicate": cfg.data_augmentation.nb_train_valid_duplicate,
                 "gamma_Exp_scheduelr": cfg.hyperparameters.gamma,
+                "transformations_img": str(transformations_img),
+                "transformations_both": str(transformations_both)
             }
         )
     else:
@@ -70,7 +94,7 @@ def main(cfg):
     # Load Datasets for the AutoEncoder
     logger.info('loading datasets with feature extraction')
     
-    train_dataset, valid_dataset, test_dataset = split_dataset(
+    train_dataset, valid_dataset, _ = split_dataset(
         cfg.data_paths.clean_data, 
         cfg.data_paths.test_set_filenames,
         transform_img=transformations_img,
@@ -123,11 +147,12 @@ def main(cfg):
     optimizer = optim.Adam(
         model.parameters(), 
         lr = cfg.hyperparameters.learning_rate, 
-        weight_decay = cfg.hyperparameters.weight_decay
+        weight_decay = cfg.hyperparameters.weight_decay,
+        eps=1e-6
     )
     #scheduler = StepLR(optimizer, step_size=50)
-    #scheduler = CosineAnnealingLR(optimizer, T_max=cfg.hyperparameters.T_max)
-    scheduler = Exponetial(optimizer, T_max=cfg.hyperparameters.T_max)
+    scheduler = CosineAnnealingLR(optimizer, T_max=cfg.hyperparameters.T_max)
+    #scheduler = ExponentialLR(optimizer, gamma=cfg.hyperparameters.gamma)
     
     # Training loop
     num_epochs = cfg.hyperparameters.num_epochs
