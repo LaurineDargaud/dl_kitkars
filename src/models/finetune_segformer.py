@@ -266,6 +266,12 @@ def main(cfg):
                 "training_loss": cur_loss.cpu().detach().numpy() / len(train_dataset),
                 "learning_rate": scheduler.get_last_lr()[0]
             })
+            
+        if (epoch % 20 == 0):
+            # save intermediate models every 20 epochs
+            logger.info(f'intermediate saving, epoch {epoch}')
+            torch.save(model.state_dict(), cfg.model_paths.models+f'segformer_finetuned_{name}_epoch{epoch}.pt')     
+        
         
     logger.info('FINISHED training')
     
