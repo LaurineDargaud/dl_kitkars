@@ -26,7 +26,7 @@ from torch import nn
 import wandb
 
 @click.command()
-@hydra.main(version_base=None, config_path='conf', config_name="config_autoencoder")
+@hydra.main(version_base=None, config_path='conf', config_name="config_autoencoder2")
 def main(cfg):
     """ Predict test set with finetuned AutoEncoder model
     """
