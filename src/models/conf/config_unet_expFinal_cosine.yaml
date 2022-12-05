@@ -1,14 +1,14 @@
-# EXP FINAL - exp4e parameters, but a lot more epochs = 1,000 (with intermediate saves), and updated Gamma
+# EXP FINAL - exp4e parameters, but a lot more epochs = 500 (with intermediate saves), with cosine
 
 cuda: 0
-name: 'expFinal'
+name: 'expFinalCosine'
 
 log_wandb: True
 
 reuse_finetune: 'None' 
 
 # For Predictions
-name_best: 'expFinal_epoch500' 
+name_best: 'expFinalCosine' 
 predict_dataset: 'test' #test or valid
 
 predict_params:
@@ -32,9 +32,9 @@ hyperparameters:
   num_workers: 32
   learning_rate: 1e-3
   weight_decay: 1E-4
-  num_epochs: 1000 #100
+  num_epochs: 500 #100
   validation_every_steps: 100 #500
-  T_max: 100
+  T_max: 50
   gamma: 0.99311604842 #0.966
 
 data_augmentation:
