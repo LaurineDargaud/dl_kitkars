@@ -12,23 +12,13 @@ import numpy as np
 
 from src.data.DeloitteDataset import split_dataset
 
-<<<<<<< HEAD
-from torchvision.transforms import ColorJitter, Grayscale
-
-from src.models.performance_metrics import dice_score
-=======
 from autoencoder import AutoEncoder
->>>>>>> f7e4d01bf99fc14520580af03fc9b29b8efcd952
 
 from src.models.performance_metrics import dice_score
 
 import torch
 from torch.utils.data import DataLoader
-<<<<<<< HEAD
-from torch.optim.lr_scheduler import ExponentialLR, StepLR, CosineAnnealingLR
-=======
 from torch.optim.lr_scheduler import CosineAnnealingLR, ExponentialLR
->>>>>>> f7e4d01bf99fc14520580af03fc9b29b8efcd952
 from torch import nn
 from torchvision import transforms
 import torch.optim as optim
@@ -45,24 +35,12 @@ def main(cfg):
     
     cuda, name, log_wandb = cfg.cuda, cfg.name, cfg.log_wandb
     
-<<<<<<< HEAD
      # Define image transformations
     transformations_img = transforms.Compose(
         [ColorJitter(brightness=(0.7,1.3), contrast=(0.7,1.3), saturation=(0.7,1.3), hue=(-0.5,0.5))]
     )
     #transformations_img = None
 
-=======
-    # Define image transformations
-    transformations_img = transforms.Compose(
-        [ColorJitter(brightness=(0.7,1.3), contrast=(0.7,1.3), saturation=(0.7,1.3), hue=(-0.5,0.5))]
-    )
-    # transformations_img = transforms.Compose(
-    #     [Grayscale(3)]
-    # )
-    # transformations_img=None
-    
->>>>>>> f7e4d01bf99fc14520580af03fc9b29b8efcd952
     # Define transformations to apply to both img and mask
     transformations_both = {
         'crop_resize': {
@@ -72,10 +50,7 @@ def main(cfg):
         'random_hflip':{'p':0.5},
         'random_perspective':{'distortion_scale': 0.5 }
     }
-<<<<<<< HEAD
-=======
     # transformations_both = None
->>>>>>> f7e4d01bf99fc14520580af03fc9b29b8efcd952
 
     # WANDB LOG
     if log_wandb:
@@ -90,19 +65,11 @@ def main(cfg):
                 "epochs": cfg.hyperparameters.num_epochs,
                 "batch_size": cfg.hyperparameters.batch_size,
                 "weight_decay": cfg.hyperparameters.weight_decay,
-<<<<<<< HEAD
-                #"finetuned_parameters": cfg.unet_parameters.to_finetune,
-                "data_real_processing": cfg.data_augmentation.data_real,
-                "ratio_synthetic_data": cfg.data_augmentation.synthetic_data_ratio,
-                "nb_duplicate": cfg.data_augmentation.nb_train_valid_duplicate,
-                "gamma_Exp_scheduelr": cfg.hyperparameters.gamma,
-=======
                 "data_real_processing": cfg.data_augmentation.data_real,
                 "ratio_synthetic_data": cfg.data_augmentation.synthetic_data_ratio,
                 "nb_duplicate": cfg.data_augmentation.nb_train_valid_duplicate,
                 "gamma_exponential_scheduler": cfg.hyperparameters.gamma,
                 #"eta_min_cosine_scheduler": cfg.hyperparameters.eta_min,
->>>>>>> f7e4d01bf99fc14520580af03fc9b29b8efcd952
                 "transformations_img": str(transformations_img),
                 "transformations_both": str(transformations_both)
             }
@@ -113,14 +80,8 @@ def main(cfg):
     # Set torch device
     device = torch.device(f'cuda:{cuda}')
     
-<<<<<<< HEAD
-    # Load Datasets for the AutoEncoder
-    logger.info('loading datasets with feature extraction')
-    
-=======
     # Load Datasets
     logger.info('loading datasets')
->>>>>>> f7e4d01bf99fc14520580af03fc9b29b8efcd952
     train_dataset, valid_dataset, _ = split_dataset(
         cfg.data_paths.clean_data, 
         cfg.data_paths.test_set_filenames,
@@ -164,8 +125,8 @@ def main(cfg):
     
     # Test the forward pass with dummy data
     logger.info('testing with dummy data')
-    out = model(torch.randn(10, 3, 32, 32, device=device))
-    assert out.size() == (10, cfg.autoencoder_parameters.nb_output_channels, 32, 32)
+    out = model(torch.randn(10, 3, 256, 256, device=device))['x_hat']
+    assert out.size() == (10, cfg.autoencoder_parameters.nb_output_channels, 256, 256)
     
     # Set optimizer and scheduler
     loss_fn = nn.CrossEntropyLoss()
@@ -175,14 +136,8 @@ def main(cfg):
         weight_decay = cfg.hyperparameters.weight_decay,
         eps=1e-6
     )
-<<<<<<< HEAD
-    #scheduler = StepLR(optimizer, step_size=50)
     scheduler = CosineAnnealingLR(optimizer, T_max=cfg.hyperparameters.T_max)
-    #scheduler = ExponentialLR(optimizer, gamma=cfg.hyperparameters.gamma)
-=======
-    #scheduler = CosineAnnealingLR(optimizer, T_max=cfg.hyperparameters.T_max)
-    scheduler  = ExponentialLR(optimizer, gamma=cfg.hyperparameters.gamma)
->>>>>>> f7e4d01bf99fc14520580af03fc9b29b8efcd952
+    #scheduler  = ExponentialLR(optimizer, gamma=cfg.hyperparameters.gamma)
     
     # Training loop
     num_epochs = cfg.hyperparameters.num_epochs

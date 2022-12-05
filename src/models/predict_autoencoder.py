@@ -120,6 +120,7 @@ def main(cfg):
         n_channels=cfg.autoencoder_parameters.nb_input_channels, 
         n_classes=cfg.autoencoder_parameters.nb_output_channels
         )
+    model.load_state_dict(torch.load(cfg.model_paths.models+f'AutoEncoder_{name}.pt'))
     model = model.to(device)
     
     # Set loss function

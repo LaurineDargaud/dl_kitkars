@@ -4,8 +4,14 @@ name: 'B_v0'
 log_wandb: True
 
 # For Predictions
-name_best: 'v1'
+name_best: 'B_v0'
 predict_dataset: 'test'
+
+predict_params:
+  apply_normalization: True
+  data_real: False
+  nb_train_valid_duplicate: 1
+  synthetic_data_ratio: 0.05
 
 data_paths:
   clean_data: 'data/raw/carseg_data/clean_data'
