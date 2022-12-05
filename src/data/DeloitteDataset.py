@@ -198,6 +198,7 @@ def split_dataset(
     train_indices = permutation[:int(train_ratio*len(train_valid_data_list))]
     valid_indices = permutation[int(train_ratio*len(train_valid_data_list)):]
     train_dataset = DeloitteDataset(list(train_valid_data_list[train_indices]), transform_img=transform_img, transform_mask=transform_mask, transform_both=transform_both, feature_extractor=feature_extractor)
-    valid_dataset = DeloitteDataset(list(train_valid_data_list[valid_indices]), transform_img=transform_img, transform_mask=transform_mask, transform_both=transform_both, feature_extractor=feature_extractor)
+    # valid_dataset = DeloitteDataset(list(train_valid_data_list[valid_indices]), transform_img=transform_img, transform_mask=transform_mask, transform_both=transform_both, feature_extractor=feature_extractor)
+    valid_dataset = DeloitteDataset(list(train_valid_data_list[valid_indices]), transform_img=None, transform_mask=None, transform_both=None, feature_extractor=feature_extractor)    
         
     return train_dataset, valid_dataset, test_dataset

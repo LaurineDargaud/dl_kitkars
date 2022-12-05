@@ -27,7 +27,7 @@ import torch.optim as optim
 import wandb
 
 @click.command()
-@hydra.main(version_base=None, config_path='conf', config_name="config_unet_expFinal_refinetune")
+@hydra.main(version_base=None, config_path='conf', config_name="config_unet_exp4e_noAugmentOnValid")
 def main(cfg):
     """ Fine tuning our U-Net pretrained model - baseline
     """
