@@ -1,0 +1,32 @@
+##### TO CHANGE IF YOU WANT TO RUN INFER_UNET
+
+log_wandb: True # if we log or not in wandb
+
+name_best: 'expFinal_epoch500'  # finetuned model to use for inference
+
+data_paths:
+  clean_data: 'data/to_infer/clean_data' #where to put .npy files that will be generated
+  images_to_infer: 'data/to_infer' #where we can find .png or .jpg images to infer
+
+image:
+  height: 256
+  width: 256
+
+### ABOUT TORCH PARAMETERS
+
+cuda: 0
+
+predict_params:
+  apply_normalization: True
+
+hyperparameters:
+  batch_size: 32
+  num_workers: 32
+
+# # # # # # # # # #
+
+model_paths:
+  models: 'models/'
+
+unet_parameters:
+  nb_output_channels: 9
