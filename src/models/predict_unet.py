@@ -16,7 +16,11 @@ from src.models.unet import UNet
 from torchvision import transforms
 from src.models.performance_metrics import dice_score, dice_score_class
 
+from src.models.performance_metrics import dice_score, dice_score_class, dice_score_2Dmasks
+
 from src.visualization.visualization_fct import mask_to_rgb
+
+from src.models.post_processing_fct import post_processing
 
 import torch
 from torch.utils.data import DataLoader
@@ -204,20 +208,42 @@ def main(cfg):
         logger.info(f'creating wandb table for predictions visualization')
         
         # create a wandb.Table() with corresponding columns
-        columns=["id", "filename", "RGB image", "real mask", "prediction", "DICE score float", "DICE score"] + [f"DICE_{i}_{j}" for i,j in _MASK_NAMES_.items()]
+        if cfg.post_processing:
+            all_indiv_masks_dice_scores, all_indiv_processed_masks_dice_scores = [], []
+            columns=["id", "filename", "RGB image", "real mask", "prediction", "post-process", "DICE score post-process", "DICE score on max_mask", "DICE score float", "DICE score"] + [f"DICE_{i}_{j}" for i,j in _MASK_NAMES_.items()]
+        else:
+            columns=["id", "filename", "RGB image", "real mask", "prediction", "DICE score float", "DICE score"] + [f"DICE_{i}_{j}" for i,j in _MASK_NAMES_.items()]
 
         test_table = wandb.Table(columns=columns)
         
         for i in tqdm(range((len(test_dataset)))):            
-            rgb_image, mask_img = test_dataset[i]
+            rgb_image_tensor, mask_img_tensor = test_dataset[i]
             
-            rgb_image = rgb_image.cpu().detach().numpy()
+            rgb_image = rgb_image_tensor.cpu().detach().numpy()
             rgb_image = np.transpose(rgb_image, (1, 2, 0))
-            mask_img = mask_img.cpu().detach().numpy()[0]
-            mask_img = mask_to_rgb(mask_img)
+            mask_img = mask_img_tensor.cpu().detach().numpy()[0]
             
             logit_prediction = all_predictions[i]
-            predicted_mask_img = mask_to_rgb(np.argmax(logit_prediction, axis=0))
+            predicted_mask_img = np.argmax(logit_prediction, axis=0)
+            
+            if cfg.post_processing:
+                processed_mask_img = post_processing(predicted_mask_img)
+                # compute dice score of the image after post processing
+                dice_score_post_proc = dice_score_2Dmasks(
+                    torch.IntTensor(processed_mask_img).flatten().unsqueeze(0),
+                    mask_img_tensor.flatten().unsqueeze(0)
+                )
+                all_indiv_processed_masks_dice_scores.append(dice_score_post_proc)
+                # compute dice score on max mask
+                dice_score_max_mask = dice_score_2Dmasks(
+                    torch.IntTensor(predicted_mask_img).flatten().unsqueeze(0),
+                    mask_img_tensor.flatten().unsqueeze(0)
+                )
+                all_indiv_masks_dice_scores.append(dice_score_max_mask)
+                processed_mask_img = mask_to_rgb(processed_mask_img)
+            
+            mask_img = mask_to_rgb(mask_img)
+            predicted_mask_img = mask_to_rgb(predicted_mask_img)
             
             filename = test_dataset.data_list[i].name
 
@@ -226,18 +252,48 @@ def main(cfg):
                 filename, 
                 wandb.Image(rgb_image), 
                 wandb.Image(mask_img), 
-                wandb.Image(predicted_mask_img),
-                all_dice_scores[i],
-                str(all_dice_class[i])] + [np.round(j*100, 3) for j in all_dice_scores[i]]
+                wandb.Image(predicted_mask_img)]
+            
+            if cfg.post_processing:
+                test_columns.append(wandb.Image(processed_mask_img))
+                test_columns.append(str(dice_score_post_proc))
+                test_columns.append(str(dice_score_max_mask))
+            
+            test_columns = test_columns + [all_dice_scores[i], str(all_dice_class[i])] + [np.round(j*100, 3) for j in all_dice_scores[i]]
 
             test_table.add_data(*test_columns)
         
         wandb.log({"test_table": test_table})
+        
+        if cfg.post_processing:
+            wandb.log({
+                "avg_dice_score_mask": np.mean(all_indiv_masks_dice_scores),
+                "avg_dice_score_processed_mask": np.mean(all_indiv_processed_masks_dice_scores)
+            })
 
         columns_dice_class = [str(f"{i}_{j}") for i,j in _MASK_NAMES_.items()]
 
         data = [[label, val] for (label, val) in zip(columns_dice_class, dice_class_average_list)]
         wandb.log({"Bar_chart": wandb.plot.bar(wandb.Table(data=data, columns = ["Classes", "Percentage"]) , "Classes", "Percentage", title= "Classes Bar Chart")})
+    
+    # save predictions
+    if cfg.save_predictions_path != False:
+        
+        logger.info(f'save predictions locally')
+        
+        from os.path import isdir
+        from os import makedirs
+        
+        save_predictions_folder = cfg.save_predictions_path+f'/unet_finetuned_{name}_{dataset_to_predict}/'
+        
+        if not isdir(save_predictions_folder):
+            makedirs(save_predictions_folder)
+        
+        for i in tqdm(range((len(test_dataset)))):            
+            logit_prediction = all_predictions[i]
+            predicted_mask = np.argmax(logit_prediction, axis=0)
+            filename = test_dataset.data_list[i].name
+            np.save(save_predictions_folder+filename, predicted_mask)
     
     logger.info('FINISHED predictions')
 
