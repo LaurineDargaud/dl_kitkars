@@ -42,7 +42,7 @@ def resize_logits(logits, size=(256,256)):
     return upsampled_logits
 
 @click.command()
-@hydra.main(version_base=None, config_path='conf', config_name="config_segformer")
+@hydra.main(version_base=None, config_path='conf', config_name="config_segformer4e")
 def main(cfg):
     """ Predict test set with finetuned SegFormer model
     """
@@ -171,15 +171,13 @@ def main(cfg):
                 ) * len(rgb_img)
             )
             
-            # Save output mask
-            # for i in range(len(output)):
-            #     all_predictions.append(output[i].cpu().detach().numpy())
-            #     all_dice_scores.append(
-            #         float(dice_score(
-            #             output[i].flatten(start_dim=1, end_dim=len(output.size())-2).unsqueeze(0),
-            #             mask_img[i].flatten(start_dim=0, end_dim=len(mask_img.size())-2).unsqueeze(0)
-            #         ))
-            #     )
+            # classes x batches
+            dice_class.append(
+                    dice_score_class(
+                        predictions, 
+                        mask_img.flatten(start_dim=1, end_dim=len(mask_img.size())-1)
+                    )
+                )
             
             for i in range(len(output)):
                 all_predictions.append(output[i].cpu().detach().numpy())
