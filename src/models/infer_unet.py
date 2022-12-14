@@ -193,7 +193,7 @@ def main(cfg):
 
         test_table = wandb.Table(columns=columns)
         
-        for i in tqdm(range((len(test_dataset)))):            
+        for i in tqdm(range((len(test_dataset)))):   
             rgb_image, mask_img = test_dataset[i]
             
             rgb_image = rgb_image.cpu().detach().numpy()
@@ -225,6 +225,21 @@ def main(cfg):
         wandb.log({"Bar_chart": wandb.plot.bar(wandb.Table(data=data, columns = ["Classes", "Percentage"]) , "Classes", "Percentage", title= "Classes Bar Chart")})
     
     logger.info('FINISHED predictions')
+    
+    if cfg.save_predictions_as_ground_truth:
+        logger.info('replace clean_data ground truth mask by prediction')
+        for i in tqdm(range((len(test_dataset)))):    
+            aNpyPath = test_dataset.data_list[i]
+            
+            numpy_array = np.load(aNpyPath)
+            rgb_image = numpy_array[:3]
+            
+            logit_prediction = all_predictions[i]
+            predicted_mask_img = np.argmax(logit_prediction, axis=0)
+            predicted_mask_img = np.reshape(predicted_mask_img, (1, *predicted_mask_img.shape))
+            
+            anItem = np.concatenate([rgb_image, predicted_mask_img])
+            np.save(aNpyPath, anItem)
 
 if __name__ == '__main__':
     log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'

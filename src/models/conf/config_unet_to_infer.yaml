@@ -1,12 +1,14 @@
 ##### TO CHANGE IF YOU WANT TO RUN INFER_UNET
 
-log_wandb: True # if we log or not in wandb
+log_wandb: False # if we log or not in wandb
 
-name_best: 'expFinal_epoch500'  # finetuned model to use for inference
+name_best: 'pirupiru'  # finetuned model to use for inference
+
+save_predictions_as_ground_truth: True # replace mask of clean_data_ by prediction
 
 data_paths:
-  clean_data: 'data/to_infer/clean_data' #where to put .npy files that will be generated
-  images_to_infer: 'data/to_infer' #where we can find .png or .jpg images to infer
+  clean_data: 'data/cars_train/clean_data' #'data/to_infer/clean_data' #where to put .npy files that will be generated
+  images_to_infer: 'data/cars_train' #'data/to_infer'  #where we can find .png or .jpg images to infer
 
 image:
   height: 256

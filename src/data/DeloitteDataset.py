@@ -227,7 +227,32 @@ def generate_npy_files(source, target, img_extensions=['png','jpg'], new_size=(2
         aFile, aFileName = all_npy_files[i], all_paths[i]
         # resize if wanted - 256x256 by default
         if new_size != False:
-            aFile = cv2.resize(aFile.transpose(1,2,0), new_size).transpose(2,0,1)
+            aFile = aFile.transpose(1,2,0)
+            # make square
+            if new_size[0] == new_size[1] and aFile.shape[0] != aFile.shape[1]:
+                # original picture is not square
+                bordersize = int(abs(aFile.shape[0]-aFile.shape[1])/2)
+                if aFile.shape[0] > aFile.shape[1]:
+                    # add borders on right and left since it is a high rectangle
+                    aFile = cv2.copyMakeBorder(
+                        aFile,
+                        left=bordersize,
+                        right=bordersize,
+                        top=0, bottom=0,
+                        borderType=cv2.BORDER_CONSTANT,
+                        value=[0, 0, 0]
+                    )
+                else:
+                    # add borders on top and bottom since it is a wide rectangle
+                    aFile = cv2.copyMakeBorder(
+                        aFile,
+                        top=bordersize,
+                        bottom=bordersize,
+                        left=0, right=0,
+                        borderType=cv2.BORDER_CONSTANT,
+                        value=[0, 0, 0]
+                    )
+            aFile = cv2.resize(aFile, new_size).transpose(2,0,1)
         _, H, W = aFile.shape
         aMask = np.zeros((1,H,W))
         anItem = np.concatenate([aFile, aMask])
