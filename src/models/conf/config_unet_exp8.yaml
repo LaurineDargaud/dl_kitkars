@@ -1,14 +1,14 @@
-# EXP 3c - Changing scheduler: ExponentialLR, gamma=0.966
+# EXP 8 - training for 200 epochs with lr = 1e-4
 
 cuda: 0
-name: 'exp3c'
+name: 'exp8'
 
 log_wandb: True
 
 reuse_finetune: 'None' 
 
 # For Predictions
-name_best: 'exp3c' 
+name_best: 'exp8'
 predict_dataset: 'test' #test or valid
 
 predict_params:
@@ -30,12 +30,12 @@ model_paths:
 hyperparameters:
   batch_size: 32
   num_workers: 32
-  learning_rate: 1e-3
-  weight_decay: 1E-3
+  learning_rate: 1e-4
+  weight_decay: 1E-4
   num_epochs: 200 #100
   validation_every_steps: 100 #500
   T_max: 100
-  gamma: 0.966
+  gamma: 0.955
 
 data_augmentation:
   data_real: True

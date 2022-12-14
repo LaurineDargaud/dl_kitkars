@@ -1,14 +1,14 @@
-# EXP 3c - Changing scheduler: ExponentialLR, gamma=0.966
+# EXP 9 - changing pretrained weights: from scale0.5 to scale 1.0
 
 cuda: 0
-name: 'exp3c'
+name: 'exp9'
 
 log_wandb: True
 
 reuse_finetune: 'None' 
 
 # For Predictions
-name_best: 'exp3c' 
+name_best: 'exp9' 
 predict_dataset: 'test' #test or valid
 
 predict_params:
@@ -25,13 +25,13 @@ data_paths:
 
 model_paths:
   models: 'models/'
-  unet_scale_05: 'models/unet_carvana_scale0.5_epoch2.pth'
+  unet_scale_05: 'models/unet_carvana_scale1.0_epoch2.pth'
 
 hyperparameters:
   batch_size: 32
   num_workers: 32
   learning_rate: 1e-3
-  weight_decay: 1E-3
+  weight_decay: 1E-4
   num_epochs: 200 #100
   validation_every_steps: 100 #500
   T_max: 100

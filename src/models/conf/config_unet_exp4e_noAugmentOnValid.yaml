@@ -1,14 +1,14 @@
-# EXP 3c - Changing scheduler: ExponentialLR, gamma=0.966
+# EXP 4e without data augmentation on valid
 
 cuda: 0
-name: 'exp3c'
+name: 'exp4e_noAugmentOnValid'
 
 log_wandb: True
 
 reuse_finetune: 'None' 
 
 # For Predictions
-name_best: 'exp3c' 
+name_best: 'exp4e_noAugmentOnValid' 
 predict_dataset: 'test' #test or valid
 
 predict_params:
@@ -29,9 +29,9 @@ model_paths:
 
 hyperparameters:
   batch_size: 32
-  num_workers: 32
+  num_workers: 24
   learning_rate: 1e-3
-  weight_decay: 1E-3
+  weight_decay: 1E-4
   num_epochs: 200 #100
   validation_every_steps: 100 #500
   T_max: 100

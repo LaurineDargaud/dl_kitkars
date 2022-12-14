@@ -19,7 +19,7 @@ from src.models.performance_metrics import dice_score
 
 import torch
 from torch.utils.data import DataLoader
-from torch.optim.lr_scheduler import CosineAnnealingLR, ExponentialLR
+from torch.optim.lr_scheduler import CosineAnnealingLR, ExponentialLR, CosineAnnealingWarmRestarts
 from torch import nn
 from torchvision import transforms
 import torch.optim as optim
@@ -27,7 +27,7 @@ import torch.optim as optim
 import wandb
 
 @click.command()
-@hydra.main(version_base=None, config_path='conf', config_name="config_unet_exp2c")
+@hydra.main(version_base=None, config_path='conf', config_name="config_unet_exp4e_noAugmentOnValid")
 def main(cfg):
     """ Fine tuning our U-Net pretrained model - baseline
     """
@@ -37,9 +37,9 @@ def main(cfg):
     cuda, name, log_wandb = cfg.cuda, cfg.name, cfg.log_wandb
     
     # Define image transformations
-    # transformations_img = transforms.Compose(
-    #     [ColorJitter(brightness=(0.7,1.3), contrast=(0.7,1.3), saturation=(0.7,1.3), hue=(-0.5,0.5))]
-    # )
+    transformations_img = transforms.Compose(
+        [ColorJitter(brightness=(0.7,1.3), contrast=(0.7,1.3), saturation=(0.7,1.3), hue=(-0.5,0.5))]
+    )
     # transformations_img = transforms.Compose(
     #     [Grayscale(3)]
     # )
@@ -74,7 +74,7 @@ def main(cfg):
                 "ratio_synthetic_data": cfg.data_augmentation.synthetic_data_ratio,
                 "nb_duplicate": cfg.data_augmentation.nb_train_valid_duplicate,
                 "gamma_exponential_scheduler": cfg.hyperparameters.gamma,
-                "eta_min_cosine_scheduler": cfg.hyperparameters.eta_min,
+                #"eta_min_cosine_scheduler": cfg.hyperparameters.eta_min,
                 "transformations_img": str(transformations_img),
                 "transformations_both": str(transformations_both)
             }
@@ -144,10 +144,14 @@ def main(cfg):
     optimizer = optim.Adam(
         model.parameters(), 
         lr = cfg.hyperparameters.learning_rate, 
-        weight_decay = cfg.hyperparameters.weight_decay
+        weight_decay = cfg.hyperparameters.weight_decay,
+        eps=1e-6
     )
-    scheduler = CosineAnnealingLR(optimizer, T_max=cfg.hyperparameters.T_max)
-    #scheduler  = ExponentialLR(optimizer, gamma=cfg.hyperparameters.gamma)
+    #scheduler = CosineAnnealingWarmRestarts(optimizer, T_0=cfg.hyperparameters.T_max)
+    #scheduler = CosineAnnealingLR(optimizer, T_max=cfg.hyperparameters.T_max)
+    scheduler  = ExponentialLR(optimizer, gamma=cfg.hyperparameters.gamma)
+    #intermSavingModelEpochNb = cfg.hyperparameters.T_max
+    intermSavingModelEpochNb = 50
     
     # Freeze some parameters
     logger.info('freezing wanted parameters')
@@ -265,6 +269,11 @@ def main(cfg):
                 "training_loss": cur_loss.cpu().detach().numpy() / len(train_dataset),
                 "learning_rate": scheduler.get_last_lr()[0]
             })
+        
+        if (('expFinal' in name) and (epoch % intermSavingModelEpochNb == 0)):
+            # for final experiment, save intermediate models every 100 epochs
+            logger.info(f'intermediate saving, epoch {epoch}')
+            torch.save(best_model, cfg.model_paths.models+f'unet_finetuned_{name}_epoch{epoch}.pt')     
         
     logger.info('FINISHED training')
     

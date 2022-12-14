@@ -1,15 +1,15 @@
-# EXP 3c - Changing scheduler: ExponentialLR, gamma=0.966
+# EXP FINAL - exp4e parameters, but a lot more epochs = 1,000 (with intermediate saves), and updated Gamma
 
 cuda: 0
-name: 'exp3c'
+name: 'expFinal_refinetune'
 
 log_wandb: True
 
-reuse_finetune: 'None' 
+reuse_finetune: 'expFinal_epoch500' 
 
 # For Predictions
-name_best: 'exp3c' 
-predict_dataset: 'test' #test or valid
+name_best: 'expFinal_epoch500' 
+predict_dataset: 'valid' #test or valid
 
 predict_params:
   apply_normalization: True
@@ -30,12 +30,12 @@ model_paths:
 hyperparameters:
   batch_size: 32
   num_workers: 32
-  learning_rate: 1e-3
-  weight_decay: 1E-3
-  num_epochs: 200 #100
+  learning_rate: 1e-4
+  weight_decay: 1E-4
+  num_epochs: 500 #100
   validation_every_steps: 100 #500
   T_max: 100
-  gamma: 0.966
+  gamma: 0.98174794302 #0.966
 
 data_augmentation:
   data_real: True

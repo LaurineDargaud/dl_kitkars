@@ -1,14 +1,14 @@
-# EXP 3c - Changing scheduler: ExponentialLR, gamma=0.966
+# EXP 4b - changing the epsilon: eps = 1e-6
 
 cuda: 0
-name: 'exp3c'
+name: 'exp4b'
 
 log_wandb: True
 
 reuse_finetune: 'None' 
 
 # For Predictions
-name_best: 'exp3c' 
+name_best: 'exp4b' 
 predict_dataset: 'test' #test or valid
 
 predict_params:

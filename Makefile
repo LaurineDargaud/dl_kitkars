@@ -97,10 +97,16 @@ finetune_unet:
 predict_unet:
 	$(PYTHON_INTERPRETER) src/models/predict_unet.py
 
+infer_unet:
+	$(PYTHON_INTERPRETER) src/models/infer_unet.py
+
 # ENCODER DECODER
 
 finetune_autoencoder:
 	$(PYTHON_INTERPRETER) src/models/finetune_autoencoder.py
+
+predict_autoencoder:
+	$(PYTHON_INTERPRETER) src/models/predict_autoencoder.py
 
 # SEGFORMER
 

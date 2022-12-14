@@ -1,15 +1,12 @@
-# EXP 3c - Changing scheduler: ExponentialLR, gamma=0.966
-
+#baseline exp2 - data augmentation Colorjitter + random hflip, perspective, crop-resize, 5% data_synt
 cuda: 0
-name: 'exp3c'
+name: 'B_v2'
 
 log_wandb: True
 
-reuse_finetune: 'None' 
-
 # For Predictions
-name_best: 'exp3c' 
-predict_dataset: 'test' #test or valid
+name_best: 'B_v2'
+predict_dataset: 'test'
 
 predict_params:
   apply_normalization: True
@@ -17,35 +14,30 @@ predict_params:
   nb_train_valid_duplicate: 1
   synthetic_data_ratio: 0.05
 
-# # # # # # # # # #
-
 data_paths:
   clean_data: 'data/raw/carseg_data/clean_data'
   test_set_filenames: 'references/test_set_ids.txt'
 
 model_paths:
   models: 'models/'
-  unet_scale_05: 'models/unet_carvana_scale0.5_epoch2.pth'
 
 hyperparameters:
-  batch_size: 32
+  batch_size: 16 # max 24 anything more cuda runs out of memory
   num_workers: 32
   learning_rate: 1e-3
   weight_decay: 1E-3
-  num_epochs: 200 #100
+  num_epochs: 100
   validation_every_steps: 100 #500
   T_max: 100
-  gamma: 0.966
+  gamma: 0.996
+
+autoencoder_parameters:
+  nb_output_channels: 9
+  nb_input_channels: 3
 
 data_augmentation:
   data_real: True
   nb_train_valid_duplicate: 1
   synthetic_data_ratio: 0.05
 
-image:
-  height: 256
-  width: 256
 
-unet_parameters:
-  nb_output_channels: 9
-  to_finetune: 'all'  #['outc']

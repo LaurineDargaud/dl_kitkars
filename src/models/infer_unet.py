@@ -7,23 +7,17 @@ from dotenv import find_dotenv, load_dotenv
 import hydra
 from tqdm import tqdm
 import numpy as np
+import glob2
+
+from src.data.DeloitteDataset import DeloitteDataset, generate_npy_files
 
 from src.visualization.visualization_fct import _MASK_NAMES_
 
-from src.data.DeloitteDataset import split_dataset
-
-from src.visualization.visualization_fct import get_mask_names
-
-from transformers import SegformerFeatureExtractor
-from transformers import SegformerForSemanticSegmentation
-
-# from torchvision import transforms
-
+from src.models.unet import UNet
+from torchvision import transforms
 from src.models.performance_metrics import dice_score, dice_score_class
 
 from src.visualization.visualization_fct import mask_to_rgb
-
-from src.models.finetune_segformer import resize_logits
 
 import torch
 from torch.utils.data import DataLoader
@@ -31,49 +25,31 @@ from torch import nn
 
 import wandb
 
-def resize_logits(logits, size=(256,256)):
-    # logits shape (batch_size, num_labels, height/4, width/4)
-    upsampled_logits = nn.functional.interpolate(
-        logits,
-        size=size, # (height, width)
-        mode='bilinear',
-        align_corners=False
-    )
-    return upsampled_logits
-
 @click.command()
-@hydra.main(version_base=None, config_path='conf', config_name="config_segformer4e")
+@hydra.main(version_base=None, config_path='conf', config_name="config_unet_to_infer")
 def main(cfg):
-    """ Predict test set with finetuned SegFormer model
+    """ Inferance finetuned U-Net model
     """
-    cuda, name, log_wandb, dataset_to_predict = cfg.cuda, cfg.name_best, cfg.log_wandb, cfg.predict_dataset
+    cuda, name, log_wandb = cfg.cuda, cfg.name_best, cfg.log_wandb
+    H, W = cfg.image.height, cfg.image.width
     
     logger = logging.getLogger(__name__)
-    logger.info(f'predict {dataset_to_predict} set with finetuned SegFormer model')
+    logger.info(f'predict data with finetuned U-Net model')
     
     # WANDB LOG
     if log_wandb:
         logger.info('setting wandb logging system')
         wandb.init(
-            project="segformer-predictions", 
+            project="unet-inference", 
             entity="kitkars", 
-            name=f'{name} ({dataset_to_predict})',
+            name=f'{str(cfg.data_paths.images_to_infer).split("/")[-1]} - {H}x{W} ({name})',
             config={
-                "pt_name":f'segformer_finetuned_{name}.pt',
+                "pt_name":f'unet_finetuned_{name}.pt',
                 "batch_size": cfg.hyperparameters.batch_size,
-                "set_type": dataset_to_predict
+                "img_height": cfg.image.height,
+                "img_width": cfg.image.width
             }
         )
-        if cfg.predict_params.data_real:
-            wandb.config.update({
-                "data_real":cfg.predict_params.data_real,
-                "synthetic_data_ratio":cfg.predict_params.synthetic_data_ratio,
-                "train_valid_duplicate":cfg.predict_params.nb_train_valid_duplicate
-            })
-        else:
-            wandb.config.update({
-                "data_real":cfg.predict_params.data_real
-            })
             
     else:
         logger.info('NO WANDB LOG')
@@ -83,36 +59,37 @@ def main(cfg):
     
     # Define image transformations
     transformations_img = None
-
+    # for V5: grayscale
+    # from torchvision import transforms
+    # transformations_img = transforms.Compose(
+    #     [transforms.Grayscale(num_output_channels=3)]
+    # )
+    
     # Define transformations to apply to both img and mask
     transformations_both = None
     
+    # create npy files from images
+    generate_npy_files(source=cfg.data_paths.images_to_infer, target=cfg.data_paths.clean_data, new_size=(H,W))
+    
     # Load Datasets
-    feature_extractor = SegformerFeatureExtractor()
+    logger.info(f'loading dataset')
     
-    logger.info(f'loading {dataset_to_predict} set')
-    train_dataset, valid_dataset, testing_dataset = split_dataset(
-        cfg.data_paths.clean_data, 
-        cfg.data_paths.test_set_filenames,
-        transform_img=transformations_img,
-        transform_both=transformations_both,
-        feature_extractor=feature_extractor,
-        train_ratio=1.0, valid_ratio=0.0,
-        data_real=cfg.data_augmentation.data_real,
-        synthetic_data_ratio=cfg.data_augmentation.synthetic_data_ratio,
-        train_valid_duplicate=cfg.data_augmentation.nb_train_valid_duplicate
-    )
+    all_paths = [ Path(p).absolute() for p in glob2.glob(cfg.data_paths.clean_data + '/*') ]
     
-    all_datasets = {
-        'train':train_dataset, 'valid': valid_dataset, 'test': testing_dataset
-    }
+    test_dataset = DeloitteDataset(all_paths, transform_img=transformations_img, transform_both=transformations_both)
     
-    test_dataset = all_datasets[dataset_to_predict]
+    # apply normalization?
+    test_dataset.doNormalize = cfg.predict_params.apply_normalization
+    if log_wandb:
+        wandb.config.update({
+            "apply_normalization": cfg.predict_params.apply_normalization,
+            "size_set": len(test_dataset)
+        })
     
     batch_size=cfg.hyperparameters.batch_size
     
     # Get dataloaders
-    logger.info(f'creating {dataset_to_predict} dataloader')
+    logger.info(f'creating dataloader')
     test_loader = DataLoader(
         test_dataset, 
         batch_size=batch_size, 
@@ -122,16 +99,9 @@ def main(cfg):
     )
     
     # Load model
-    logger.info('load SegFormer finetuned model')
-    pretrained_model_name = cfg.segformer_parameters.pretrained_name
-    id2label = get_mask_names()
-    label2id = {v: k for k, v in id2label.items()}
-    model = SegformerForSemanticSegmentation.from_pretrained(
-        pretrained_model_name,
-        id2label=id2label,
-        label2id=label2id
-    )
-    model.load_state_dict(torch.load(cfg.model_paths.models+f'segformer_finetuned_{name}.pt'))
+    logger.info('load U-net pretrained model')
+    model = UNet(n_channels=3, n_classes=cfg.unet_parameters.nb_output_channels)
+    model.load_state_dict(torch.load(cfg.model_paths.models+f'unet_finetuned_{name}.pt'))
     model = model.to(device)
     
     # Set loss function
@@ -142,19 +112,17 @@ def main(cfg):
     test_loss = 0
     all_predictions = []
     all_dice_scores = []
-    
+
     dice_class = []
     all_dice_class = []
     
-    logger.info(f'running {dataset_to_predict} predictions')
+    logger.info(f'running predictions')
     
     with torch.no_grad():
         model.eval()
         for rgb_img, mask_img in tqdm(test_loader):
             rgb_img, mask_img = rgb_img.to(device), mask_img.to(device)
-            output = model(rgb_img).logits
-            output = resize_logits(output, size=(mask_img.size(-2),mask_img.size(-1)))
-            
+            output = model(rgb_img)
             loss = loss_fn(
                 output.flatten(start_dim=2, end_dim=len(output.size())-1), 
                 mask_img.flatten(start_dim=1, end_dim=len(mask_img.size())-1).type(torch.long)
@@ -170,7 +138,7 @@ def main(cfg):
                     mask_img.flatten(start_dim=1, end_dim=len(mask_img.size())-1)
                 ) * len(rgb_img)
             )
-            
+
             # classes x batches
             dice_class.append(
                     dice_score_class(
@@ -178,7 +146,8 @@ def main(cfg):
                         mask_img.flatten(start_dim=1, end_dim=len(mask_img.size())-1)
                     )
                 )
-            
+
+            # Save output mask
             for i in range(len(output)):
                 all_predictions.append(output[i].cpu().detach().numpy())
                 #DICE PER CLASS PER IMAGE INSIDE BATCH
@@ -193,14 +162,13 @@ def main(cfg):
                         mask_img[i].flatten(start_dim=0, end_dim=len(mask_img.size())-2).unsqueeze(0)
                     )
                 )
-    
+
     # Get performance metrics
     test_dice_score = np.sum(test_dice_scores_batches) / len(test_dataset)
     dice_class_average = np.array(dice_class).mean(0)
     print(f"Test DICE score: {test_dice_score}")
     print(f"Average DICE score per class: {dice_class_average}")
 
-    
     # wandb log
     if log_wandb:
         
@@ -221,31 +189,27 @@ def main(cfg):
         logger.info(f'creating wandb table for predictions visualization')
         
         # create a wandb.Table() with corresponding columns
-        columns=["id", "filename", "RGB image", "features", "real mask", "prediction", "DICE score float", "DICE score"] + [f"DICE_{i}_{j}" for i,j in _MASK_NAMES_.items()]
+        columns=["id", "filename", "RGB image", "real mask", "prediction", "DICE score float", "DICE score"] + [f"DICE_{i}_{j}" for i,j in _MASK_NAMES_.items()]
 
         test_table = wandb.Table(columns=columns)
         
-        for i in tqdm(range((len(test_dataset)))):            
-            _, mask_img = test_dataset[i]
-            rgb_image = test_dataset.get_rawImg(i)
-            rgb_features, _ = test_dataset[i]
+        for i in tqdm(range((len(test_dataset)))):   
+            rgb_image, mask_img = test_dataset[i]
             
-            rgb_image = rgb_image.type(torch.int).cpu().detach().numpy()
+            rgb_image = rgb_image.cpu().detach().numpy()
             rgb_image = np.transpose(rgb_image, (1, 2, 0))
             mask_img = mask_img.cpu().detach().numpy()[0]
             mask_img = mask_to_rgb(mask_img)
-            rgb_features = rgb_features.type(torch.int).cpu().detach().numpy()
-            rgb_features = np.transpose(rgb_features, (1, 2, 0))
             
             logit_prediction = all_predictions[i]
             predicted_mask_img = mask_to_rgb(np.argmax(logit_prediction, axis=0))
             
             filename = test_dataset.data_list[i].name
+
             test_columns = [
                 i, 
                 filename, 
                 wandb.Image(rgb_image), 
-                wandb.Image(rgb_features), 
                 wandb.Image(mask_img), 
                 wandb.Image(predicted_mask_img),
                 all_dice_scores[i],
@@ -260,8 +224,22 @@ def main(cfg):
         data = [[label, val] for (label, val) in zip(columns_dice_class, dice_class_average_list)]
         wandb.log({"Bar_chart": wandb.plot.bar(wandb.Table(data=data, columns = ["Classes", "Percentage"]) , "Classes", "Percentage", title= "Classes Bar Chart")})
     
-    
     logger.info('FINISHED predictions')
+    
+    if cfg.save_predictions_as_ground_truth:
+        logger.info('replace clean_data ground truth mask by prediction')
+        for i in tqdm(range((len(test_dataset)))):    
+            aNpyPath = test_dataset.data_list[i]
+            
+            numpy_array = np.load(aNpyPath)
+            rgb_image = numpy_array[:3]
+            
+            logit_prediction = all_predictions[i]
+            predicted_mask_img = np.argmax(logit_prediction, axis=0)
+            predicted_mask_img = np.reshape(predicted_mask_img, (1, *predicted_mask_img.shape))
+            
+            anItem = np.concatenate([rgb_image, predicted_mask_img])
+            np.save(aNpyPath, anItem)
 
 if __name__ == '__main__':
     log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'

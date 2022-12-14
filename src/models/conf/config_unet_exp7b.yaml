@@ -1,14 +1,14 @@
-# EXP 3c - Changing scheduler: ExponentialLR, gamma=0.966
+# EXP 6 - training on top of exp4e with 50 epochs and same gamma
 
 cuda: 0
-name: 'exp3c'
+name: 'exp7b'
 
 log_wandb: True
 
-reuse_finetune: 'None' 
+reuse_finetune: 'exp7' 
 
 # For Predictions
-name_best: 'exp3c' 
+name_best: 'exp7b'
 predict_dataset: 'test' #test or valid
 
 predict_params:
@@ -31,7 +31,7 @@ hyperparameters:
   batch_size: 32
   num_workers: 32
   learning_rate: 1e-3
-  weight_decay: 1E-3
+  weight_decay: 1E-4
   num_epochs: 200 #100
   validation_every_steps: 100 #500
   T_max: 100

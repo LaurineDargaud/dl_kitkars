@@ -20,7 +20,7 @@ from src.visualization.visualization_fct import get_mask_names
 
 import torch
 from torch.utils.data import DataLoader
-from torch.optim.lr_scheduler import CosineAnnealingLR
+from torch.optim.lr_scheduler import CosineAnnealingLR, ExponentialLR
 from torch import nn
 from torchvision import transforms
 import torch.optim as optim
@@ -38,7 +38,7 @@ def resize_logits(logits, size=(256,256)):
     return upsampled_logits
 
 @click.command()
-@hydra.main(version_base=None, config_path='conf', config_name="config_segformer")
+@hydra.main(version_base=None, config_path='conf', config_name="config_segformer4e")
 def main(cfg):
     """ Fine tuning a SegFormer pretrained model
     """
@@ -151,9 +151,12 @@ def main(cfg):
     optimizer = optim.Adam(
         model.parameters(), 
         lr = cfg.hyperparameters.learning_rate, 
-        weight_decay = cfg.hyperparameters.weight_decay
+        weight_decay = cfg.hyperparameters.weight_decay,
+        eps=1e-6
     )
-    scheduler = CosineAnnealingLR(optimizer, T_max=cfg.hyperparameters.T_max)
+    
+    #scheduler = CosineAnnealingLR(optimizer, T_max=cfg.hyperparameters.T_max)
+    scheduler = ExponentialLR(optimizer, gamma=cfg.hyperparameters.gamma)
     
     # Training loop
     num_epochs = cfg.hyperparameters.num_epochs
@@ -263,6 +266,12 @@ def main(cfg):
                 "training_loss": cur_loss.cpu().detach().numpy() / len(train_dataset),
                 "learning_rate": scheduler.get_last_lr()[0]
             })
+            
+        if (epoch % 20 == 0):
+            # save intermediate models every 20 epochs
+            logger.info(f'intermediate saving, epoch {epoch}')
+            torch.save(model.state_dict(), cfg.model_paths.models+f'segformer_finetuned_{name}_epoch{epoch}.pt')     
+        
         
     logger.info('FINISHED training')
     

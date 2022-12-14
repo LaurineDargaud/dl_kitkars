@@ -1,14 +1,14 @@
-# EXP 3c - Changing scheduler: ExponentialLR, gamma=0.966
+# EXP 4 - changeing the weight decay: weight_decay = 1e-4
 
 cuda: 0
-name: 'exp3c'
+name: 'Seg4e'
 
 log_wandb: True
 
 reuse_finetune: 'None' 
 
 # For Predictions
-name_best: 'exp3c' 
+name_best: 'Seg4e' 
 predict_dataset: 'test' #test or valid
 
 predict_params:
@@ -31,7 +31,7 @@ hyperparameters:
   batch_size: 32
   num_workers: 32
   learning_rate: 1e-3
-  weight_decay: 1E-3
+  weight_decay: 1E-4
   num_epochs: 200 #100
   validation_every_steps: 100 #500
   T_max: 100
@@ -49,3 +49,7 @@ image:
 unet_parameters:
   nb_output_channels: 9
   to_finetune: 'all'  #['outc']
+
+segformer_parameters:
+  nb_output_channels: 9
+  pretrained_name: 'nvidia/mit-b0'
