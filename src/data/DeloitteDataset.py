@@ -132,10 +132,10 @@ def processing(path_list, seed_random, ratio=0.1, duplicate=2):
             real_data.append(aPath)
         else:
             synt_data.append(aPath)
-        stop = int(len(synt_data)*ratio)
-        random.shuffle(synt_data)
-        synt_slice = synt_data[slice(stop)]
-        together = (real_data + synt_slice)*duplicate
+    stop = int(len(synt_data)*ratio)
+    random.shuffle(synt_data)
+    synt_slice = synt_data[slice(stop)]
+    together = (real_data + synt_slice)*duplicate
     return together
 
 def split_dataset(
@@ -198,6 +198,62 @@ def split_dataset(
     train_indices = permutation[:int(train_ratio*len(train_valid_data_list))]
     valid_indices = permutation[int(train_ratio*len(train_valid_data_list)):]
     train_dataset = DeloitteDataset(list(train_valid_data_list[train_indices]), transform_img=transform_img, transform_mask=transform_mask, transform_both=transform_both, feature_extractor=feature_extractor)
-    valid_dataset = DeloitteDataset(list(train_valid_data_list[valid_indices]), transform_img=transform_img, transform_mask=transform_mask, transform_both=transform_both, feature_extractor=feature_extractor)
+    # valid_dataset = DeloitteDataset(list(train_valid_data_list[valid_indices]), transform_img=transform_img, transform_mask=transform_mask, transform_both=transform_both, feature_extractor=feature_extractor)
+    valid_dataset = DeloitteDataset(list(train_valid_data_list[valid_indices]), transform_img=None, transform_mask=None, transform_both=None, feature_extractor=feature_extractor)    
         
     return train_dataset, valid_dataset, test_dataset
+
+import cv2
+
+def generate_npy_files(source, target, img_extensions=['png','jpg'], new_size=(256,256)):
+    """ Transform all PNG or JPG images from source npy files in target for prediction or training """
+    
+    if source[-1] != '/':
+        source += '/'
+    if target[-1] != '/':
+        target += '/'
+    
+    all_paths = []
+    for anExtension in img_extensions:
+        all_paths = all_paths + [ Path(p).absolute() for p in glob2.glob(source + f'*.{anExtension}') ]
+    print('Number of files:', len(all_paths))
+    
+    # load all files
+    all_files = [cv2.imread(str(f)) for f in all_paths]
+    all_files = [a[:,:,[2,1,0]] for a in all_files]
+    all_npy_files = [(np.transpose(a, (2,0,1))/255) for a in all_files]
+
+    for i in range(len(all_files)):
+        aFile, aFileName = all_npy_files[i], all_paths[i]
+        # resize if wanted - 256x256 by default
+        if new_size != False:
+            aFile = aFile.transpose(1,2,0)
+            # make square
+            if new_size[0] == new_size[1] and aFile.shape[0] != aFile.shape[1]:
+                # original picture is not square
+                bordersize = int(abs(aFile.shape[0]-aFile.shape[1])/2)
+                if aFile.shape[0] > aFile.shape[1]:
+                    # add borders on right and left since it is a high rectangle
+                    aFile = cv2.copyMakeBorder(
+                        aFile,
+                        left=bordersize,
+                        right=bordersize,
+                        top=0, bottom=0,
+                        borderType=cv2.BORDER_CONSTANT,
+                        value=[0, 0, 0]
+                    )
+                else:
+                    # add borders on top and bottom since it is a wide rectangle
+                    aFile = cv2.copyMakeBorder(
+                        aFile,
+                        top=bordersize,
+                        bottom=bordersize,
+                        left=0, right=0,
+                        borderType=cv2.BORDER_CONSTANT,
+                        value=[0, 0, 0]
+                    )
+            aFile = cv2.resize(aFile, new_size).transpose(2,0,1)
+        _, H, W = aFile.shape
+        aMask = np.zeros((1,H,W))
+        anItem = np.concatenate([aFile, aMask])
+        np.save(target+aFileName.stem+'.npy', anItem)

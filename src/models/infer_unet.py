@@ -7,8 +7,9 @@ from dotenv import find_dotenv, load_dotenv
 import hydra
 from tqdm import tqdm
 import numpy as np
+import glob2
 
-from src.data.DeloitteDataset import split_dataset
+from src.data.DeloitteDataset import DeloitteDataset, generate_npy_files
 
 from src.visualization.visualization_fct import _MASK_NAMES_
 
@@ -25,38 +26,30 @@ from torch import nn
 import wandb
 
 @click.command()
-@hydra.main(version_base=None, config_path='conf', config_name="config_unet_expFinal_refinetune")
+@hydra.main(version_base=None, config_path='conf', config_name="config_unet_to_infer")
 def main(cfg):
-    """ Predict test set with finetuned U-Net model
+    """ Inferance finetuned U-Net model
     """
-    cuda, name, log_wandb, dataset_to_predict = cfg.cuda, cfg.name_best, cfg.log_wandb, cfg.predict_dataset
+    cuda, name, log_wandb = cfg.cuda, cfg.name_best, cfg.log_wandb
+    H, W = cfg.image.height, cfg.image.width
     
     logger = logging.getLogger(__name__)
-    logger.info(f'predict {dataset_to_predict} set with finetuned U-Net model')
+    logger.info(f'predict data with finetuned U-Net model')
     
     # WANDB LOG
     if log_wandb:
         logger.info('setting wandb logging system')
         wandb.init(
-            project="unet-predictions", 
+            project="unet-inference", 
             entity="kitkars", 
-            name=f'{name} ({dataset_to_predict})',
+            name=f'{str(cfg.data_paths.images_to_infer).split("/")[-1]} - {H}x{W} ({name})',
             config={
                 "pt_name":f'unet_finetuned_{name}.pt',
                 "batch_size": cfg.hyperparameters.batch_size,
-                "set_type": dataset_to_predict
+                "img_height": cfg.image.height,
+                "img_width": cfg.image.width
             }
         )
-        if cfg.predict_params.data_real:
-            wandb.config.update({
-                "data_real":cfg.predict_params.data_real,
-                "synthetic_data_ratio":cfg.predict_params.synthetic_data_ratio,
-                "train_valid_duplicate":cfg.predict_params.nb_train_valid_duplicate
-            })
-        else:
-            wandb.config.update({
-                "data_real":cfg.predict_params.data_real
-            })
             
     else:
         logger.info('NO WANDB LOG')
@@ -75,23 +68,15 @@ def main(cfg):
     # Define transformations to apply to both img and mask
     transformations_both = None
     
+    # create npy files from images
+    generate_npy_files(source=cfg.data_paths.images_to_infer, target=cfg.data_paths.clean_data, new_size=(H,W))
+    
     # Load Datasets
-    logger.info(f'loading {dataset_to_predict} set')
-    train_dataset, valid_dataset, testing_dataset = split_dataset(
-        cfg.data_paths.clean_data, 
-        cfg.data_paths.test_set_filenames,
-        transform_img=transformations_img,
-        transform_both=transformations_both,
-        data_real=cfg.predict_params.data_real,
-        synthetic_data_ratio=cfg.predict_params.synthetic_data_ratio,
-        train_valid_duplicate=cfg.predict_params.nb_train_valid_duplicate
-    )
+    logger.info(f'loading dataset')
     
-    all_datasets = {
-        'train':train_dataset, 'valid': valid_dataset, 'test': testing_dataset
-    }
+    all_paths = [ Path(p).absolute() for p in glob2.glob(cfg.data_paths.clean_data + '/*') ]
     
-    test_dataset = all_datasets[dataset_to_predict]
+    test_dataset = DeloitteDataset(all_paths, transform_img=transformations_img, transform_both=transformations_both)
     
     # apply normalization?
     test_dataset.doNormalize = cfg.predict_params.apply_normalization
@@ -104,7 +89,7 @@ def main(cfg):
     batch_size=cfg.hyperparameters.batch_size
     
     # Get dataloaders
-    logger.info(f'creating {dataset_to_predict} dataloader')
+    logger.info(f'creating dataloader')
     test_loader = DataLoader(
         test_dataset, 
         batch_size=batch_size, 
@@ -131,7 +116,7 @@ def main(cfg):
     dice_class = []
     all_dice_class = []
     
-    logger.info(f'running {dataset_to_predict} predictions')
+    logger.info(f'running predictions')
     
     with torch.no_grad():
         model.eval()
@@ -208,7 +193,7 @@ def main(cfg):
 
         test_table = wandb.Table(columns=columns)
         
-        for i in tqdm(range((len(test_dataset)))):            
+        for i in tqdm(range((len(test_dataset)))):   
             rgb_image, mask_img = test_dataset[i]
             
             rgb_image = rgb_image.cpu().detach().numpy()
@@ -240,6 +225,21 @@ def main(cfg):
         wandb.log({"Bar_chart": wandb.plot.bar(wandb.Table(data=data, columns = ["Classes", "Percentage"]) , "Classes", "Percentage", title= "Classes Bar Chart")})
     
     logger.info('FINISHED predictions')
+    
+    if cfg.save_predictions_as_ground_truth:
+        logger.info('replace clean_data ground truth mask by prediction')
+        for i in tqdm(range((len(test_dataset)))):    
+            aNpyPath = test_dataset.data_list[i]
+            
+            numpy_array = np.load(aNpyPath)
+            rgb_image = numpy_array[:3]
+            
+            logit_prediction = all_predictions[i]
+            predicted_mask_img = np.argmax(logit_prediction, axis=0)
+            predicted_mask_img = np.reshape(predicted_mask_img, (1, *predicted_mask_img.shape))
+            
+            anItem = np.concatenate([rgb_image, predicted_mask_img])
+            np.save(aNpyPath, anItem)
 
 if __name__ == '__main__':
     log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
