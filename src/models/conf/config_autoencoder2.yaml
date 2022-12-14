@@ -1,15 +1,16 @@
+#baseline exp2 - data augmentation Colorjitter + random hflip, perspective, crop-resize, 5% data_synt
 cuda: 0
-name: 'B_v0'
+name: 'B_v2'
 
 log_wandb: True
 
 # For Predictions
-name_best: 'B_v0'
+name_best: 'B_v2'
 predict_dataset: 'test'
 
 predict_params:
   apply_normalization: True
-  data_real: False
+  data_real: True
   nb_train_valid_duplicate: 1
   synthetic_data_ratio: 0.05
 
@@ -28,14 +29,15 @@ hyperparameters:
   num_epochs: 100
   validation_every_steps: 100 #500
   T_max: 100
+  gamma: 0.996
 
 autoencoder_parameters:
   nb_output_channels: 9
   nb_input_channels: 3
 
 data_augmentation:
-  data_real: False
+  data_real: True
   nb_train_valid_duplicate: 1
-  synthetic_data_ratio: 0.1
+  synthetic_data_ratio: 0.05
 
 
