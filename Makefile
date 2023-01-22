@@ -97,6 +97,9 @@ finetune_unet:
 predict_unet:
 	$(PYTHON_INTERPRETER) src/models/predict_unet.py
 
+self_learn_unet:
+	$(PYTHON_INTERPRETER) src/models/self_learn_unet.py
+
 infer_unet:
 	$(PYTHON_INTERPRETER) src/models/infer_unet.py
 
